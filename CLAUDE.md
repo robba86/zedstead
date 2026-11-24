@@ -4,6 +4,8 @@
 
 **Never** put AI attribution in a commit message: no `Co-Authored-By: Claude` trailer and no "Generated with Claude Code" footer.
 
+**Always** work on `develop`. Merge it into `main` only at a release: Update Zedstead, the install one-liners and the update banner read `main`.
+
 **Never** remove existing functionality before you ask the maintainer.
 
 **Always** use DRY code where you can.
@@ -109,4 +111,3 @@
 | `webui/CLAUDE.md` | React frontend: pages, theme, URL state, map editor UI |
 | `docker/CLAUDE.md` | Container deployment |
 | `tests/CLAUDE.md` | Test fixtures: no copied game files, when a run is not green |
-| `dayz-docs/CLAUDE.md` | Local only, not in the repository: Bohemia's specs, the source for a correct DayZ config |

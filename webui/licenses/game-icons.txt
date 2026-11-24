@@ -1,0 +1,56 @@
+Game-icons (react-icons/gi), https://game-icons.net, https://github.com/game-icons/icons
+
+The map editor's marker icons, the item icons and the building icons are from game-icons.net and are licensed under
+the Creative Commons Attribution 3.0 Unported licence (CC BY 3.0):
+https://creativecommons.org/licenses/by/3.0/
+
+Zedstead shows them unchanged, filled with a marker or text colour. The authors:
+
+- Andy Meneely: police-badge
+- Carl Olsen: crossbow
+- Caro Asercion: boar, bowl-of-rice, deer, fox, water-mill
+- DarkZaitzev: fish-cooked, smoke-bomb
+- Delapouite (http://delapouite.com): 3d-hammer, alarm-clock,
+  arm-bandage, backpack, bacon, banana, bandana, barn, barracks-tent,
+  barrel, baseball-bat, bear-head, bell-pepper, binoculars, book-cover,
+  bread, brick-wall, briefcase, bus, camping-tent, canned-fish,
+  captain-hat-profile, car-battery, car-door, car-wheel, caravan,
+  cardboard-box, cargo-crate, carousel, castle, castle-ruins, chest,
+  chicken, chips-bag, church, city-car, control-tower, cooking-pot, cow,
+  cowboy-holster, crosshair, crowbar, dam, deer-track, desk, dutch-bike,
+  factory, farm-tractor, first-aid-kit, fishing-boat, fishing-pole,
+  flashlight, full-motorcycle-helmet, gardening-shears, gas-pump,
+  gas-stove, gloves, goose, greek-temple, greenhouse, gun-stock,
+  hamburger, hand-saw, hatchet, helicopter, honey-jar, hoodie, hospital,
+  house, hut, jeep, jerrycan, kiwi-fruit, lab-coat, lighthouse,
+  lock-picking, log, machine-gun-magazine, mechanic-garage,
+  medical-thermometer, medicine-pills, megaphone, metal-plate,
+  military-fort, mining-helmet, modern-city, moncler-jacket,
+  monkey-wrench, opened-food-can, orange, peach, pear, pitchfork,
+  planks, pocket-radio, police-car, police-officer-head, potato,
+  power-generator, present, prisoner, pumpkin, rabbit, raw-egg,
+  rolled-cloth, rope-coil, round-silo, sausage, school-bag,
+  shambling-zombie, sheep, ship-wreck, shop, sickle, skirt, spark-plug,
+  stable, steak, steam-locomotive, stone-pile, suitcase, sunglasses,
+  t-shirt, ticket, tomato, toolbox, torch, truck, wallet, watchtower,
+  water-bottle, well, windmill, wire-coil, wood-cabin, wooden-crate
+- Guard13007: soda-can
+- John Colburn: pistol-gun
+- John Redman: paper
+- Lorc (http://lorcblog.blogspot.com): bandage-roll, barbed-wire,
+  battle-tank, biohazard, boots, broken-bone, bullets, campfire,
+  candle-flame, cash, cheese-wedge, compass, fedora, fire-axe,
+  firework-rocket, fishing-hook, flash-grenade, flying-flag, fountain, fountain-pen,
+  grenade, hospital-cross, land-mine, lantern, machete, mining,
+  mushroom, nails, pincers, pine-tree, plain-dagger, screwdriver,
+  scythe, sewing-needle, shiny-apple, spade, spray, syringe,
+  treasure-map, trousers, wolf-head, wolf-trap, wood-axe, wooden-fence
+- Lucas: belt, shirt
+- Quoting: bunker
+- Rihlsul: chocolate-bar, milk-carton
+- Sbed (http://opengameart.org/content/95-game-icons): ammo-box,
+  battery-pack, fire, medical-pack, shotgun
+- Skoll: airplane, ak47, balaclava, bayonet, blood, box-trap,
+  brodie-helmet, dress, gas-mask, goat, kevlar-vest, pig, pocket-watch,
+  raise-zombie
+- Sparker: bear-face

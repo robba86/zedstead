@@ -1,0 +1,33 @@
+# Python: virtualenv, bytecode, build output, test cache
+.venv/
+__pycache__/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+# Written by `uv run` or `uv sync`; the setup uses `uv pip install`, which reads pyproject.toml only
+/uv.lock
+
+# Web UI dependencies
+webui/node_modules/
+
+# Docker bind-mount data dirs (root-level only — must not match app/server/ etc.)
+/server/
+/steam-cache/
+/config/
+/backups/
+/bundles/
+/.env
+
+# Local folders kept out of this repository
+/plans/*
+!/plans/README.md
+/dayz-docs/*
+!/dayz-docs/README.md
+/tests/private/
+
+# Local Claude Code files: your own instructions, settings, hooks and their state
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/hooks/
+.claude/.*.json

@@ -1,0 +1,26 @@
+.git
+.gitignore
+.venv
+build
+dist
+*.egg-info
+.pytest_cache
+__pycache__
+**/__pycache__
+*.pyc
+tests
+plans
+scripts
+README-DEV.md
+CONTRIBUTING.md
+install.bat
+install.ps1
+uninstall.*
+.env
+docker-compose.override.yml
+# bind-mount volumes — host data, must never be baked into the image
+server
+steam-cache
+config
+backups
+bundles

@@ -1,0 +1,3126 @@
+/* Visual Map Editor styles, ported from app/spawn_editor/static/style.css.
+ *
+ * Scoping rules for this file — the old stylesheet owned a whole document,
+ * this one lives inside the app shell:
+ *
+ * 1. NO global reset and NO `body` rule. The original opened with `* { margin:
+ *    0 }` and `body { display: flex; height: 100vh; overflow: hidden }`, which
+ *    would wreck every other page.
+ * 2. Everything is a class under `.me-editor`, never an `#id`. The original
+ *    keyed ~60 rules off DOM ids, which coupled the styles to a single global
+ *    document; components own their markup now.
+ * 3. Leaflet overrides are deliberately global (`.leaflet-*`) — Leaflet renders
+ *    into its own container and there is exactly one map in the app.
+ * 4. Chrome colours come from index.css's theme tokens (--bg, --bg-raised,
+ *    --bg-hover, --border, --text, --text-muted, --accent, --good, --warning,
+ *    --danger, --on-accent/--on-good/--on-danger for text on a fill, --shadow,
+ *    --map-void, plus --sans/--mono), so the editor matches the rest of the web
+ *    UI *and* follows the theme switch. The ported stylesheet's own
+ *    palette (a #1a1a1a/#c62828 dark-red theme) is gone — do not reintroduce a
+ *    raw hex for a surface, border, text or accent; it would stay dark when the
+ *    user picks Tactical Light. Hex literals that remain are deliberate and NOT chrome:
+ *    map-data marker colours (trader #ffa000, trader object #8d6e63, safezone
+ *    #22c55e, garage #f59e0b — each paired with the same value in the leaflet/
+ *    layer hooks and icons/iconRules.js, so change both or neither), the white
+ *    marker discs and the map labels, all of which sit on the map image and are
+ *    theme-independent by design. Expansion's four layers add five more of the
+ *    same kind, and they live *only* in leaflet/useExpansionLayers.js
+ *    (EXPANSION_COLORS) — nothing in this sheet paints them, so there is no
+ *    second copy to keep in step.
+ *
+ * Sections land as their phase does. In so far: shell, sidebar, layers,
+ * locations, status bar (phase 1); add-mode bar, event list, event detail,
+ * spawn popup and the create-event dialog (phase 2); selection bar, player
+ * spawns tab, selection highlight and the bulk-operation overlay (phase 3);
+ * traders tab, TraderPlus markers, tooltips and popups (phase 4).
+ */
+
+@import 'leaflet/dist/leaflet.css';
+
+/* ================================================================
+   Shell
+   ================================================================ */
+
+.me-editor {
+  display: flex;
+  /* Fill whatever .content-bleed has left after the app chrome above it (it is
+     a fixed-height column flex container). min-height:0 lets the map shrink
+     instead of pushing the container past the viewport; the old fixed calc
+     counted the breadcrumbs but not the info bar, so the bottom was clipped. */
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  overflow: hidden;
+  /* Contain the editor's z-indexes. Leaflet's controls sit at z-index 1000 and
+     its panes at 400-700, and the ported sidebar at 1000; without a stacking
+     context here those compete in the ROOT layer with the app's own overlays
+     (.modal-backdrop is 100, .toast-stack 200) and win — the drag-confirm
+     modal would render behind the zoom buttons. */
+  isolation: isolate;
+}
+
+.me-editor *,
+.me-editor *::before,
+.me-editor *::after {
+  box-sizing: border-box;
+}
+
+.me-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  color: var(--danger);
+  font-size: 13px;
+  gap: 10px;
+}
+
+/* ================================================================
+   Sidebar
+   ================================================================ */
+
+.me-sidebar {
+  /* --me-panel-w: the width the handle drags (panels/SidebarWidthHandle.jsx). */
+  width: var(--me-panel-w, 320px);
+  min-width: var(--me-panel-w, 320px);
+  /* The tabs' container query reads this width. */
+  container: me-panel / inline-size;
+  background: var(--bg-raised);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  z-index: 1000;
+}
+
+/* Folded (wide screens only): a thin strip holding the unfold and Expand
+   buttons. The
+   rest stays mounted and is only hidden; the map's ResizeObserver
+   (useLeafletMap) picks up the width it gains. */
+.me-sidebar-folded {
+  width: 40px;
+  min-width: 40px;
+  align-items: center;
+  padding-top: 14px;
+}
+
+.me-sidebar-folded > :not(.me-sidebar-strip) {
+  display: none;
+}
+
+.me-sidebar-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The phone sheet's scroller (LeftPanel.jsx). On a wide screen it is no box
+   at all, so the sections stay the sidebar's own flex items; the mobile block
+   below turns it into the sheet's one scroller. */
+.me-sheet-body {
+  display: contents;
+}
+
+.me-sidebar-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Every control below is an ALIAS of the grouped "Form controls" selector in
+   index.css — surface, border, radius, focus ring and the <select> chevron all
+   come from there. What stays here is only the density (this is a dense panel
+   UI: 11-12px, tighter padding) and the layout. Do NOT restore a
+   background/border/color declaration to one of these; index.css is a
+   non-lazy sheet and this one lands after it, so a duplicate here silently
+   wins and un-unifies the editor. */
+
+.me-map-select {
+  --field-pad-y: 3px;
+  --field-pad-x: 6px;
+  --field-size: 12px;
+  --field-radius: 4px;
+}
+
+/* The map picker and its Maps-page link, at the header's right edge. */
+.me-header-map {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* The two round header buttons: expand/minimize and the guide. */
+.me-header-actions {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.me-help-btn,
+.me-expand-btn,
+.me-fold-btn {
+  align-self: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.me-help-btn:hover,
+.me-help-btn:focus,
+.me-expand-btn:hover,
+.me-expand-btn:focus,
+.me-fold-btn:hover,
+.me-fold-btn:focus {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  outline: none;
+}
+
+/* Expanded: keep the button lit so it reads as an active mode, not a
+   one-shot action the user has to remember pressing. */
+.me-expand-btn[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* ---- Layers ---- */
+
+/* Layers, the location list and the tab body share the sidebar's height.
+   Expanded, the 21 layer toggles alone are taller than a 877px viewport, and
+   without a cap they took the whole column and left the tab body at zero
+   height (F11). Each section above the tabs now scrolls on its own, and the
+   tab body keeps a floor: the filter, a category header and four 32px rows.
+   Measured at 1920x877 with the TLS banner, the 35% cap and the floor come
+   out even (226 / 223px of a 647px sidebar); 45% left the list two rows.
+   The floor gives way on a short window (22vh), or at 600px it would push the
+   status bar out of the sidebar; vh, not %, because the phone sheet has no
+   definite height for a % to resolve against. */
+.me-layers {
+  /* No padding: the sticky ListSection header carries the top, so nothing can
+     scroll into a band above the title, and the body below the sides. */
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 35%;
+  overflow-y: auto;
+}
+
+/* The switch rows line up with the ListSection title (--head-pad's 12px). */
+.me-layers > .list-section-body {
+  padding: 0 12px 8px;
+}
+
+.me-layer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Base map is a few rows: never a scroller, and its last row needs no rule
+   above the section's own border. */
+.me-base-map-section {
+  flex: none;
+  max-height: none;
+}
+
+.me-base-map-section .me-layer-list > li:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.me-layer-list li.sub {
+  padding-left: 20px;
+}
+
+.me-layer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.me-layer-toggle.sub-toggle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.me-toggle-icon {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.me-layer-toggle:hover .me-toggle-icon {
+  opacity: 1;
+}
+
+.me-layer-list li.disabled {
+  opacity: 0.4;
+}
+
+.me-layer-list li.disabled .me-layer-toggle {
+  cursor: not-allowed;
+}
+
+/* ---- Two trader systems (TraderSystemsNote.jsx) ---- */
+
+/* The shared .banner (closable), sized for the panel: under the header, above Base map. */
+.me-trader-systems {
+  margin: 8px 16px;
+  padding: 6px 32px 6px 8px; /* right: room for the × */
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.me-trader-systems p {
+  margin: 0 0 6px;
+}
+
+.me-trader-systems > :last-child {
+  margin-bottom: 0;
+}
+
+.me-trader-systems-title {
+  font-weight: 600;
+}
+
+.me-trader-systems ul {
+  margin: 0 0 6px;
+  padding-left: 16px;
+}
+
+/* ---- Tab bar ---- */
+
+.me-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+/* The title above the tabs: a ListSection header like the Layers and
+   Locations titles, so the sections read as one list of collapsible parts. */
+.me-tabs-head {
+  border-bottom: 1px solid var(--border);
+}
+
+.me-tabs[hidden] {
+  display: none;
+}
+
+/* hidden would lose to the display: flex below without this. */
+.me-tab-content[hidden] {
+  display: none;
+}
+
+/* With the tab body closed, the space is the layer list's. */
+.me-sidebar:has(.me-tab-content[hidden]) .me-layers {
+  max-height: none;
+}
+
+.me-tab {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  padding: 8px 2px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: color 0.15s, border-color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.me-tab-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.me-tab.active .me-tab-icon {
+  opacity: 1;
+}
+
+.me-tab:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.me-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.me-tab:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ---- Add mode bar ---- */
+
+.me-add-mode-bar {
+  padding: 8px 16px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  border-bottom: 1px solid var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.me-add-mode-bar strong {
+  color: var(--accent);
+}
+
+.me-add-mode-input {
+  --field-pad-y: 3px;
+  --field-pad-x: 8px;
+  --field-size: 12px;
+  --field-radius: 4px;
+  --field-family: var(--mono);
+  flex: 1;
+  min-width: 0;
+}
+
+/* The spawn test's bar holds a class and a count in a 320px panel, so it
+   wraps: the title on its own row, then the two boxes, then hint and Cancel. */
+.me-add-mode-bar.me-add-mode-wrap {
+  flex-wrap: wrap;
+}
+
+.me-add-mode-wrap > span:first-child {
+  flex-basis: 100%;
+}
+
+.me-add-mode-wrap .me-add-mode-input {
+  min-width: 120px;
+}
+
+.me-add-mode-wrap .me-add-mode-input.me-add-mode-count {
+  flex: 0 0 64px;
+  min-width: 0;
+}
+
+.me-add-mode-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.me-add-mode-cancel {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.me-add-mode-cancel:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+/* ---- Selection bar ---- */
+
+.me-selection-bar {
+  padding: 6px 16px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  border-bottom: 1px solid var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.me-selection-bar strong {
+  color: var(--accent);
+}
+
+.me-selection-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.me-selection-deselect {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.me-selection-deselect:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.me-delete-bar {
+  padding: 6px 16px;
+  background: color-mix(in srgb, var(--danger) 14%, var(--bg));
+  border-bottom: 1px solid var(--accent);
+  display: flex;
+  align-items: center;
+}
+
+.me-selection-delete {
+  background: var(--danger);
+  color: var(--on-danger);
+  border: none;
+  border-radius: 3px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.me-selection-delete:hover {
+  background: var(--danger-hover);
+}
+
+/* ---- Tab content ---- */
+
+.me-tab-content {
+  flex: 1 1 0;
+  min-height: min(210px, 22vh);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Location categories ---- */
+
+.me-location-list {
+  /* No padding: the sticky ListSection header and body carry it, as in
+     .me-layers, so a closed list is just its header. */
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The admin's own place names (panels/OwnPlaceNames.jsx, plans/87). */
+.me-own-places {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.me-own-places > .list-section-body {
+  padding: 0;
+}
+
+/* A type row's name is the label of its checkbox. */
+.me-location-list .list-row-name > label {
+  cursor: pointer;
+}
+
+/* An editable place: the name box and the type picker share the name slot. */
+.me-own-place .list-row-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: visible;
+}
+
+.me-own-place .me-own-place-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.me-own-place .me-own-place-type {
+  width: 96px;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+/* A link under a layer's switch (LayerToggles: Locations' Add a place name). */
+.me-layer-extra {
+  padding: 2px 8px 4px 52px;
+  font-size: 12px;
+}
+
+/* The name box at a clicked spot (panels/PlaceNameInput.jsx): a dot on the
+   spot, the box beside it. Over Leaflet's panes and controls (1000). */
+.me-place-name-input {
+  position: absolute;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transform: translate(-5px, -50%);
+}
+
+.me-place-name-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-raised);
+  flex-shrink: 0;
+}
+
+.me-place-name-input .field {
+  width: 180px;
+  box-shadow: 0 4px 14px var(--shadow-strong);
+}
+
+.me-own-places-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* ---- Event filter row ---- */
+
+.me-event-filter {
+  padding: 8px 12px;
+  position: sticky;
+  top: 0;
+  background: var(--bg-raised);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.me-event-search {
+  --field-pad-y: 7px;
+  --field-pad-x: 10px;
+  --field-size: 13px;
+  --field-radius: 4px;
+  width: 100%;
+}
+
+
+/* Cross-link out to the config editor that owns the data (EditorLink.jsx).
+   Same footprint as the add button so button clusters stay aligned. */
+.me-link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.me-link-btn-text {
+  width: auto;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+.me-link-btn:hover,
+.me-link-btn:focus-visible {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* Back + "open this event's files" row above the event detail form. */
+/* Wraps, so Back, the two file links and "Save as manual XML file" stay
+   inside a narrow sidebar instead of spilling over the map. */
+.me-detail-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 0 8px 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.me-detail-nav .me-back-btn {
+  width: auto;
+  flex: 1;
+  border-bottom: none;
+}
+
+
+/* ---- Event list ---- */
+
+.me-event-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 4px 8px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ---- Event detail ---- */
+
+.me-back-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
+}
+
+.me-back-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.me-event-detail {
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.me-event-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.me-event-detail-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  word-break: break-all;
+}
+
+/* The event's map glyph before its name (icons/SpawnIcon.jsx). */
+.me-title-icon {
+  margin-right: 6px;
+  vertical-align: -3px;
+}
+
+.me-active-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.me-active-toggle-label input[type='checkbox'] {
+  accent-color: var(--good);
+}
+
+.me-density-bar {
+  position: relative;
+  height: 20px;
+  background: var(--bg-hover);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.me-density-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--good);
+  transition: width 0.3s;
+  border-radius: 3px;
+}
+
+.me-density-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--text);
+  font-family: var(--mono);
+  z-index: 1;
+}
+
+.me-detail-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.me-detail-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.me-detail-field-row label {
+  font-size: 11px;
+  color: var(--text-muted);
+  width: 60px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+/* Alias of the same base (index.css lists this pair by selector, since the
+   markup carries no class of its own); density + layout only. */
+.me-detail-field-row input,
+.me-detail-field-row .rs {
+  --field-pad-y: 4px;
+  --field-pad-x: 6px;
+  --field-size: 12px;
+  --field-radius: 4px;
+  --field-family: var(--mono);
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+.me-detail-field-row input::-webkit-outer-spin-button,
+.me-detail-field-row input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.me-detail-field-row input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+.me-detail-flags {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.me-detail-flag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.me-detail-children-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.me-detail-children-table th {
+  text-align: left;
+  color: var(--text-muted);
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+
+.me-detail-children-table td {
+  padding: 3px 6px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+}
+
+.me-detail-children-table tr:hover td {
+  background: var(--bg-hover);
+}
+
+.me-detail-save-btn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 8px;
+  background: var(--good);
+  color: var(--on-good);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.me-detail-save-btn:hover {
+  background: color-mix(in srgb, var(--good) 82%, var(--text-heading));
+}
+
+.me-detail-save-btn:disabled {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+/* ---- Player Spawns tab ----
+   The lists are the shared parts (webui/DESIGN.md). The section parameter
+   editor (PlayerSpawnSectionDetail.jsx) keeps its own classes below. */
+
+.me-ps-add-group {
+  margin: 4px 8px;
+}
+
+.me-ps-detail {
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.me-ps-detail .me-detail-save-btn {
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.me-ps-detail-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+
+/* ---- Mod items tab (panels/ModItemsTab.jsx) ---- */
+
+.me-mod-items-pick {
+  padding: 8px 12px 0;
+}
+
+.me-mod-items-switch {
+  padding: 0 12px 6px;
+  font-size: 12px;
+}
+
+
+.me-mod-item-detail {
+  padding: 12px;
+}
+
+.me-mod-item-detail .me-detail-save-btn {
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.me-mod-item-mod {
+  font-size: 11px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+/* A note in the item detail and the edit form: the box's padding is the
+   inset, so the PanelNote lines up with the fields under it. */
+.me-mod-item-detail .panel-note,
+.me-mod-item-edit .panel-note {
+  padding-inline: 0;
+  margin-bottom: 8px;
+}
+
+.me-mod-item-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.me-mod-item-file > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.me-mod-item-wide {
+  grid-column: 1 / -1;
+}
+
+.me-mod-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.me-mod-item-row:hover {
+  background: var(--bg-hover);
+}
+
+
+
+
+
+.me-mod-item-input {
+  --field-pad-y: 4px;
+  --field-pad-x: 6px;
+  --field-size: 12px;
+  --field-radius: 4px;
+  --field-family: var(--mono);
+  flex: 1;
+  min-width: 0;
+}
+
+/* The temporary test reads as the lesser action beside the lasting ones. */
+.me-mod-item-detail .me-mod-item-test {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.me-mod-item-detail .table-nested-parts {
+  margin-top: 8px;
+}
+
+/* ---- Traders tab ----
+   The lists are the shared parts (components/ListSection, ListRow, RowAction;
+   webui/DESIGN.md). Only the map-data colours stay here (see the header). */
+
+.me-trader-npc-dot {
+  background: #ffa000;
+}
+
+.me-trader-object-dot {
+  background: #8d6e63;
+}
+
+.me-safezone-dot {
+  background: #22c55e;
+}
+
+.me-garage-dot {
+  background: #f59e0b;
+}
+
+.me-trader-id {
+  color: #ffa000;
+}
+
+/* ---- Related pages (RelatedLinks.jsx) ---- */
+
+/* <details> so the block costs one line when collapsed — the sidebar's vertical
+   space belongs to the tab content. */
+.me-related {
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  background: var(--bg-raised);
+  flex-shrink: 0;
+  /* With every section above closed, Related pages and the status bar sit at
+     the bottom of the sidebar rather than halfway down it. */
+  margin-top: auto;
+}
+
+/* Drawn as the other section titles: same row, size and caret. */
+.me-related > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  user-select: none;
+  list-style: none;
+}
+
+.me-related > summary:hover {
+  color: var(--text);
+}
+
+.me-related-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 0 16px 8px;
+  list-style: none;
+}
+
+/* ---- Status bar ---- */
+
+.me-status-bar {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg);
+}
+
+.me-conn.connected {
+  color: var(--good);
+}
+
+.me-conn.disconnected {
+  color: var(--danger);
+}
+
+.me-coords {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+/* ---- Scrollbars ---- */
+
+.me-layers::-webkit-scrollbar,
+.me-location-list::-webkit-scrollbar,
+.me-tab-content::-webkit-scrollbar,
+.me-event-list::-webkit-scrollbar,
+.me-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.me-layers::-webkit-scrollbar-track,
+.me-location-list::-webkit-scrollbar-track,
+.me-tab-content::-webkit-scrollbar-track,
+.me-event-list::-webkit-scrollbar-track,
+.me-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.me-layers::-webkit-scrollbar-thumb,
+.me-location-list::-webkit-scrollbar-thumb,
+.me-tab-content::-webkit-scrollbar-thumb,
+.me-event-list::-webkit-scrollbar-thumb,
+.me-scroll::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 3px;
+}
+
+.me-layers::-webkit-scrollbar-thumb:hover,
+.me-location-list::-webkit-scrollbar-thumb:hover,
+.me-tab-content::-webkit-scrollbar-thumb:hover,
+.me-event-list::-webkit-scrollbar-thumb:hover,
+.me-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-hover);
+}
+
+/* ================================================================
+   Map
+   ================================================================ */
+
+.me-map-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+/* Sits over the map rather than replacing it — the map container must never
+   unmount, or the Leaflet instance is stranded on a detached node. */
+.me-error-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1200;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.me-map {
+  flex: 1;
+  background: var(--map-void);
+  /* Read by the marker wrappers below; useIconZoom rewrites --icon-size on zoom. */
+  --icon-size: 14px;
+  --icon-padding: 3px;
+}
+
+/* The building map and the coordinate grid (plans/69). Canvas tiles read
+   these through getComputedStyle, so they follow the theme like the rest. */
+.me-map {
+  /* Darker than the forest's tree icons, so the trees stand out. */
+  --map-land: #2a322c;
+  --map-building: #c9c3ab;
+  --map-grid-major: rgba(255, 255, 255, 0.32);
+  --map-grid-minor: rgba(255, 255, 255, 0.1);
+  /* The terrain map (plans/70): flat land and sea, contour lines. */
+  --map-terrain-land: #2a322c;
+  --map-terrain-sea: #16212b;
+  --map-terrain-coast: #6f9cc0;
+  --map-terrain-contour: rgba(201, 195, 171, 0.16);
+  --map-terrain-contour-major: rgba(201, 195, 171, 0.34);
+  /* Over a map image the photo is the ground, in either theme. */
+  --map-terrain-contour-on-image: rgba(255, 244, 214, 0.38);
+  --map-terrain-contour-major-on-image: rgba(255, 244, 214, 0.72);
+  /* The forest (ROADMAP 50): tree icons from the mission's cluster files. */
+  --map-forest-tree: #56744d;
+  /* The loot layer (plans/82): buildings an item can spawn in. */
+  --map-loot: #ff4fa3;
+  --map-loot-edge: #1a0d14;
+}
+
+/* The roads (plans/70), also read by the legend in the sidebar. */
+.me-map,
+.me-road-legend {
+  --map-road-main: #e8893a;
+  --map-road-secondary: #e3c35a;
+  --map-road-minor: #cfc59a;
+  --map-road-gravel: #a8916b;
+  --map-road-dirt: #92704e;
+  --map-road-path: #a0957f;
+  --map-road-airfield: #8d9298;
+}
+
+:root[data-theme="tactical-light"] .me-map,
+:root[data-theme="tactical-light"] .me-road-legend {
+  --map-road-main: #d6701c;
+  --map-road-secondary: #c49a12;
+  --map-road-minor: #a39462;
+  --map-road-gravel: #94795a;
+  --map-road-dirt: #7a5534;
+  --map-road-path: #6f6450;
+  --map-road-airfield: #7b8086;
+}
+
+:root[data-theme="tactical-light"] .me-map {
+  --map-forest-tree: #4a7141;
+  --map-land: #e6e2d6;
+  --map-building: #57524a;
+  --map-grid-major: rgba(0, 0, 0, 0.35);
+  --map-grid-minor: rgba(0, 0, 0, 0.12);
+  --map-terrain-land: #ece7d9;
+  --map-terrain-sea: #c4dbec;
+  --map-terrain-coast: #4f7fa6;
+  --map-terrain-contour: rgba(120, 90, 60, 0.28);
+  --map-terrain-contour-major: rgba(120, 90, 60, 0.55);
+  --map-terrain-contour-on-image: rgba(255, 244, 214, 0.38);
+  --map-terrain-contour-major-on-image: rgba(255, 244, 214, 0.72);
+  --map-loot: #c8106f;
+  --map-loot-edge: #ffffff;
+}
+
+/* Over Leaflet's map pane (z-index 400) and never in the way of a click. */
+.me-grid-labels {
+  position: absolute;
+  inset: 0;
+  z-index: 401;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.me-grid-label {
+  position: absolute;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  white-space: nowrap;
+}
+
+.me-grid-label.x {
+  top: 2px;
+  transform: translateX(-50%);
+}
+
+.me-grid-label.z {
+  left: 2px;
+  transform: translateY(-50%);
+}
+
+/* A cleared map's credit (MapEditor.jsx MapCredit): a condition of its
+   maker's permission, so it stays on screen while their data is drawn. */
+.me-map-credit {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 401;
+  max-width: calc(100% - 12px);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-raised) 85%, transparent);
+}
+
+.me-map-note {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 401;
+  max-width: calc(100% - 96px);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-raised) 90%, transparent);
+  pointer-events: none;
+}
+
+.me-base-map {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0 6px;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.me-base-map label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.me-base-map label:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* A wrapped choice lines up under the first. */
+.me-base-map {
+  align-items: baseline;
+}
+
+.me-base-map-choices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+/* The admin's own map image (plans/69 Step 4), beside the Image checkbox. */
+.me-own-image {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* What each road colour means, shown while the roads are. */
+.me-road-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 0 0 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.me-road-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.me-road-swatch {
+  display: inline-block;
+  width: 16px;
+  border-top: 3px solid;
+}
+
+.me-road-main { border-top-color: var(--map-road-main); }
+.me-road-secondary { border-top-color: var(--map-road-secondary); }
+.me-road-minor { border-top-color: var(--map-road-minor); }
+.me-road-gravel { border-top-color: var(--map-road-gravel); }
+.me-road-dirt { border-top: 2px dashed var(--map-road-dirt); }
+.me-road-path { border-top: 2px dotted var(--map-road-path); }
+.me-road-airfield { border-top: 4px solid var(--map-road-airfield); }
+
+.me-status-note {
+  flex: 1;
+  margin: 0 8px;
+  color: var(--warning);
+}
+
+/* On the wrapper, never on .me-map itself: React writes className wholesale
+   and Leaflet keeps its own classes on the map element. */
+.me-map-wrap.add-mode-cursor .me-map {
+  cursor: crosshair !important;
+}
+
+/* ---- Leaflet dark theme ---- */
+
+.leaflet-container {
+  background: var(--map-void) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-radius: 6px;
+  box-shadow: 0 3px 14px var(--shadow-strong);
+}
+
+.leaflet-popup-tip {
+  background: var(--bg-hover);
+}
+
+.leaflet-popup-close-button {
+  color: var(--text-muted) !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: var(--text) !important;
+}
+
+/* Zoom +/-: a small card like the floating panel, drawn from the theme's
+   tokens so Dark, Light and Slim follow by themselves; both Tacticals add their
+   glass and glow below. The doubled class outranks leaflet.css's
+   `.leaflet-touch .leaflet-bar a` without !important. */
+.me-editor .leaflet-control-zoom.leaflet-bar {
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius, 8px);
+  background: var(--bg-raised);
+  box-shadow: 0 6px 18px var(--shadow-strong);
+  overflow: hidden;
+}
+
+.me-editor .leaflet-control-zoom.leaflet-bar a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  line-height: 1;
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.me-editor .leaflet-control-zoom.leaflet-bar a + a {
+  border-top: 1px solid var(--border);
+}
+
+.me-editor .leaflet-control-zoom.leaflet-bar a:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.me-editor .leaflet-control-zoom.leaflet-bar a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* At the zoom limit Leaflet marks the button disabled. */
+.me-editor .leaflet-control-zoom.leaflet-bar a.leaflet-disabled {
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+:where(:root[data-theme^="tactical"]) .me-editor .leaflet-control-zoom.leaflet-bar {
+  border-color: var(--tac-glass-edge);
+  background: color-mix(in srgb, var(--bg-raised) 82%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 8px 24px var(--tac-drop),
+    inset 0 1px 0 var(--tac-glass-lit);
+}
+
+:where(:root[data-theme^="tactical"]) .me-editor .leaflet-control-zoom.leaflet-bar a + a {
+  border-top-color: var(--tac-glass-edge);
+}
+
+:where(:root[data-theme^="tactical"]) .me-editor .leaflet-control-zoom.leaflet-bar a:not(.leaflet-disabled):hover {
+  background: var(--tac-primary-hover);
+  color: var(--tac-on-fill);
+  box-shadow: inset 0 0 12px rgba(0, 168, 255, 0.35);
+}
+
+/* ---- Marker icon wrappers ---- */
+
+.spawn-icon-wrapper,
+.player-spawn-icon-wrapper,
+.trader-icon-wrapper,
+.trader-object-icon-wrapper,
+.garage-icon-wrapper {
+  width: calc(var(--icon-size) + var(--icon-padding) * 2) !important;
+  height: calc(var(--icon-size) + var(--icon-padding) * 2) !important;
+  margin-left: calc((var(--icon-size) + var(--icon-padding) * 2) / -2) !important;
+  margin-top: calc((var(--icon-size) + var(--icon-padding) * 2) / -2) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--icon-padding);
+}
+
+.spawn-icon-wrapper,
+.player-spawn-icon-wrapper {
+  background: #ffffff;
+  border-radius: 50%;
+  filter: none !important;
+  box-shadow: 0 0 5px 0px #00000080;
+  transition: transform 0.1s;
+}
+
+.spawn-icon-wrapper span,
+.player-spawn-icon-wrapper span {
+  display: flex;
+}
+
+.spawn-icon-wrapper svg,
+.player-spawn-icon-wrapper svg {
+  fill-opacity: 1;
+}
+
+.spawn-icon-wrapper svg,
+.player-spawn-icon-wrapper svg,
+.trader-icon-wrapper svg,
+.trader-object-icon-wrapper svg,
+.garage-icon-wrapper svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.spawn-icon-wrapper > span {
+  color: var(--icon-color);
+}
+
+.spawn-icon-wrapper:hover {
+  transform: scale(1.3);
+  z-index: 10000 !important;
+}
+
+/* An event spawn is drawn like a building badge (leaflet/badges.js): the
+   disc with a ring in the event's colour, on a stem down to a square on the
+   exact spot. The disc moves up by its own height plus the stem, so the
+   square, not the disc, sits on the position; a drag still moves the point.
+   The inner span is the disc, since only it carries --icon-color. */
+.spawn-icon-wrapper {
+  --spawn-disc: calc(var(--icon-size) + var(--icon-padding) * 2);
+  --spawn-stem: 8px;
+  --spawn-point: 8px;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+  margin-top: calc(-1 * (var(--spawn-disc) + var(--spawn-stem) + var(--spawn-point) / 2)) !important;
+  transform-origin: 50% calc(100% + var(--spawn-stem) + var(--spawn-point) / 2);
+}
+
+.spawn-icon-wrapper > span {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--icon-color);
+  box-shadow: 0 0 5px 0px #00000080;
+}
+
+.spawn-icon-wrapper > span::before,
+.spawn-icon-wrapper > span::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.spawn-icon-wrapper > span::before {
+  top: 100%;
+  width: 2px;
+  height: var(--spawn-stem);
+  background: var(--icon-color);
+}
+
+.spawn-icon-wrapper > span::after {
+  top: calc(100% + var(--spawn-stem));
+  width: var(--spawn-point);
+  height: var(--spawn-point);
+  box-sizing: border-box;
+  background: var(--icon-color);
+  border: 1px solid color-mix(in srgb, var(--icon-color) 55%, black);
+}
+
+.trader-icon-wrapper,
+.trader-object-icon-wrapper,
+.garage-icon-wrapper {
+  background: #ffffff;
+  border-radius: 50%;
+  filter: none !important;
+  box-shadow: 0 0 5px 0px #00000080;
+  text-align: center;
+}
+
+.trader-icon-wrapper svg,
+.trader-object-icon-wrapper svg,
+.garage-icon-wrapper svg {
+  fill-opacity: 1;
+}
+
+.trader-icon-wrapper {
+  --icon-color: #ffa000;
+  color: var(--icon-color);
+  transition: transform 0.15s ease;
+}
+
+.trader-object-icon-wrapper {
+  --icon-color: #8d6e63;
+  color: var(--icon-color);
+  transition: transform 0.15s ease;
+}
+
+.garage-icon-wrapper {
+  --icon-color: #f59e0b;
+  color: var(--icon-color);
+}
+
+.trader-icon-wrapper:hover {
+  transform: scale(1.4);
+  filter: drop-shadow(0 0 4px rgba(255, 160, 0, 0.6));
+}
+
+.trader-object-icon-wrapper:hover {
+  transform: scale(1.3);
+  filter: drop-shadow(0 0 3px rgba(141, 110, 99, 0.6));
+}
+
+
+.parking-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none !important;
+  border: none !important;
+  transition: transform 0.15s ease;
+}
+
+.safezone-center-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none !important;
+  border: none !important;
+}
+
+.safezone-center-icon:hover {
+  transform: scale(1.5);
+  filter: drop-shadow(0 0 4px rgba(34, 197, 94, 0.6));
+}
+
+/* RadZone loot crates (useHazardLayers): read-only, so no hover growth. */
+.hazard-crate-icon {
+  background: none !important;
+  border: none !important;
+}
+
+.safezone-resize-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none !important;
+  border: none !important;
+  cursor: ew-resize !important;
+  transition: transform 0.15s ease;
+}
+
+.safezone-resize-handle:hover {
+  transform: scale(1.6);
+  filter: drop-shadow(0 0 4px rgba(34, 197, 94, 0.8));
+}
+
+/* ---- Tooltips ---- */
+
+.leaflet-tooltip {
+  background: var(--bg-hover);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 2px 6px;
+  box-shadow: 0 2px 6px var(--shadow);
+}
+
+.leaflet-tooltip-top:before {
+  border-top-color: var(--border);
+}
+
+.player-spawn-tooltip {
+  font-size: 10px;
+  padding: 1px 4px;
+  white-space: pre-line;
+}
+
+.trader-tooltip {
+  background: rgba(30, 30, 30, 0.92) !important;
+  color: #ffa000 !important;
+  border: 1px solid #ffa000 !important;
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+}
+
+.safezone-tooltip {
+  background: rgba(30, 30, 30, 0.92) !important;
+  color: #22c55e !important;
+  border: 1px solid #22c55e !important;
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+}
+
+.garage-tooltip {
+  background: rgba(30, 30, 30, 0.92) !important;
+  color: #f59e0b !important;
+  border: 1px solid #f59e0b !important;
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+}
+
+/* A clicked zone path takes focus, and the browser's focus ring follows the
+   SVG element's bounding box — an axis-aligned square around a circle, and
+   around a rotated underground box the wrong shape entirely. The paths carry
+   no tabindex, so this only ever came from a mouse click; the open popup is
+   the selection cue. */
+.leaflet-container path.leaflet-interactive:focus {
+  outline: none;
+}
+
+/* The one marking on the map, an accent glow, so a picked marker looks the same
+   on every layer. `.me-marked`: 2.5 s after a sidebar fly-to lands on it
+   (leaflet/markAt.js). `.spawn-selected`: the Ctrl+drag box selection
+   (useSelection.js). Both are set on the divIcon's own element, which Leaflet
+   owns. !important outranks each layer's hover glow. */
+.me-marked,
+.spawn-selected {
+  filter: drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 12px var(--accent)) !important;
+}
+
+/* ================================================================
+   Spawn popup
+
+   Rendered by React through a portal into the element Leaflet was given by
+   bindPopup, so these class names are the ones the popup JSX emits — they are
+   global (not .me-* prefixed) because the popup lives in Leaflet's own popup
+   pane, outside .me-editor's subtree.
+   ================================================================ */
+
+.spawn-popup {
+  font-size: 12px;
+  line-height: 1.5;
+  min-width: 180px;
+}
+
+.spawn-popup .popup-title {
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.spawn-popup .popup-title.clickable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.spawn-popup .popup-title.clickable:hover {
+  color: var(--accent-hover);
+}
+
+.popup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.popup-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.popup-field-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  width: 48px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+/* The tightest density in the app — a Leaflet popup is a few hundred pixels
+   wide. Alias of the same base; see the note on .me-map-select. */
+.popup-input {
+  --field-pad-y: 3px;
+  --field-pad-x: 6px;
+  --field-size: 11px;
+  --field-radius: 4px;
+  --field-family: var(--mono);
+  flex: 1;
+  width: 100%;
+}
+
+/* A read-only number beside the editable fields (the trader zone's stock
+   count). Matches .popup-input's density without being a control — there is
+   nothing to edit, and an input a save ignores would say otherwise. */
+.popup-value {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.popup-input::-webkit-outer-spin-button,
+.popup-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.popup-input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+.popup-separator {
+  border-top: 1px solid var(--border);
+  margin: 4px 0 2px;
+}
+
+/* Several inputs on one line under a single label — the underground trigger's
+   Size X/Y/Z. `.popup-field` is already a flex row, so this only has to give
+   the inputs a shared basis and stop them being pushed narrower than they can
+   show a number in. */
+.popup-row {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.popup-row .popup-input {
+  min-width: 0;
+}
+
+/* One line under a popup's actions, pointing at the editor that owns the rest
+   of the record (an AI patrol's ~47 other fields). */
+.popup-note {
+  margin-top: 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* The app's text link (index.css): leaflet.css's own link colour outranks the
+   app-wide rule inside the map. */
+.popup-note a {
+  color: var(--accent);
+}
+
+.popup-note a:hover {
+  color: var(--accent-hover);
+}
+
+.popup-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.popup-toggle input[type='checkbox'] {
+  accent-color: var(--good);
+}
+
+.popup-toggle-label {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text);
+}
+
+.popup-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* The config editors that hold the popup's event (panels/EventFileLinks.jsx). */
+.popup-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 8px;
+}
+
+/* Per-entity popup title colours, matching their marker colours. */
+.trader-npc-title {
+  color: #ffa000 !important;
+}
+
+.trader-object-title {
+  color: #8d6e63 !important;
+}
+
+.safezone-title {
+  color: #22c55e !important;
+}
+
+.garage-title {
+  color: #f59e0b !important;
+}
+
+.popup-group-label {
+  font-weight: bold;
+  width: auto;
+  text-align: left;
+}
+
+/* ================================================================
+   Bulk-operation overlay
+
+   Portalled to document.body — it must cover the sidebar too, since the whole
+   point is that nothing may be touched until the batch finishes.
+   ================================================================ */
+
+.me-save-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.me-save-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+  font-size: 15px;
+  font-family: var(--sans);
+}
+
+.me-save-overlay-warn {
+  color: var(--danger);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* The ring and its turn are .spinner's, in index.css. */
+.me-save-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+}
+
+/* ================================================================
+   Create-event dialog
+
+   Portalled to document.body (outside .me-editor), so unprefixed classes —
+   they do not collide with anything in index.css.
+   ================================================================ */
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--sans);
+  color: var(--text);
+}
+
+.dialog-overlay *,
+.dialog-overlay *::before,
+.dialog-overlay *::after {
+  box-sizing: border-box;
+}
+
+.dialog-box {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 440px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px var(--shadow-strong);
+}
+
+.dialog-title {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 14px 16px 0;
+  color: var(--text);
+}
+
+.dialog-body {
+  padding: 12px 16px;
+}
+
+.dialog-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.dialog-input {
+  --field-size: 13px;
+  --field-radius: 4px;
+  --field-family: var(--mono);
+  width: 100%;
+}
+
+.dialog-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.dialog-error {
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: 8px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+
+.dialog-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dialog-button-cancel {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.dialog-button-cancel:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.dialog-button-submit {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.dialog-button-submit:hover {
+  background: var(--accent-hover);
+}
+
+.dialog-button-submit:disabled {
+  background: var(--bg-hover);
+  cursor: default;
+}
+
+/* ---- Collision overlay + filter panel (phase 5) ---- */
+
+/* Ported from style.css. The #collision-* id selectors became .me-collision-*
+   classes; the marker/popup classes keep their names because Leaflet writes
+   them onto the circle markers. */
+
+.collision-pulse {
+  animation: collision-pulse-anim 1.5s ease-in-out infinite;
+}
+
+@keyframes collision-pulse-anim {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.collision-popup {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.collision-popup b {
+  color: var(--text);
+}
+
+.me-toggle-icon-active {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.me-collision-filter {
+  padding: 4px 0;
+}
+
+.me-collision-select-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
+.me-collision-mode,
+.me-collision-search {
+  --field-pad-y: 5px;
+  --field-pad-x: 8px;
+  --field-size: 12px;
+  --field-radius: 4px;
+  width: 100%;
+}
+
+.me-collision-mode {
+  margin-bottom: 6px;
+}
+
+.me-collision-search {
+  margin-bottom: 4px;
+}
+
+.me-collision-type-list {
+  max-height: 150px;
+  overflow-y: auto;
+  margin-bottom: 6px;
+}
+
+.me-collision-type-list label {
+  display: block;
+  padding: 2px 4px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.me-collision-type-list label:hover {
+  background: var(--bg-hover);
+}
+
+.me-collision-type-list input[type='checkbox'] {
+  margin-right: 6px;
+}
+
+.me-collision-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.me-collision-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.me-collision-scan-btn {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 11px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.me-collision-scan-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-heading);
+}
+
+.me-collision-scan-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.me-collision-summary {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* The Loot finder (plans/82): a card over the map's right edge, like the
+   floating sidebar on the left. Below 840px it is a bottom sheet with a
+   drag handle (see the phone block). */
+.me-loot-drawer {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: 400px;
+  max-width: calc(100% - 24px);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius, 10px);
+  box-shadow: 0 8px 28px var(--shadow-strong);
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.me-map-wrap:has(.me-loot-drawer.inspecting) .me-map {
+  cursor: crosshair !important;
+}
+
+/* Title, the Item/Mod/Building views and the close button on one row. */
+.me-loot-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.me-loot-head-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.me-loot-close {
+  margin-left: auto;
+  padding: 2px 6px;
+}
+
+.me-loot-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.me-loot-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.me-loot-select {
+  width: 100%;
+}
+
+/* .rs grows in a flex row (index.css); in the panel's column it must not. */
+.me-loot-body > .me-loot-select {
+  flex: none;
+}
+
+.me-loot-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.me-loot-filter-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.me-loot-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.me-loot-filter-row .me-loot-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.me-loot-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* The Loot finder's "Found in" filter buttons. A plain label is RowTag. */
+.me-loot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+/* A filter chip ends in its CountBadge, so the pill sits near its edge. */
+.me-loot-chip-btn {
+  padding-right: 3px;
+  cursor: pointer;
+}
+
+.me-loot-chip-btn:hover {
+  background: var(--bg-hover);
+}
+
+.me-loot-chip-btn.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.me-loot-muted {
+  color: var(--text-muted);
+}
+
+.me-loot-mono {
+  font-family: var(--mono);
+}
+
+.me-loot-banner {
+  font-size: 12px;
+  padding: 6px 8px;
+  margin: 0;
+}
+
+.me-loot-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.me-loot-card-title {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.me-loot-big strong {
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.me-loot-none {
+  color: var(--text-muted);
+}
+
+.me-loot-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.me-loot-facts dt {
+  color: var(--text-muted);
+}
+
+.me-loot-facts dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.me-loot-containers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.me-loot-containers .me-loot-chips {
+  display: flex;
+  margin-top: 2px;
+}
+
+.me-loot-groups {
+  display: flex;
+  flex-direction: column;
+}
+
+.me-loot-row-sub {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text-muted);
+}
+
+/* The building the Building view describes: a ring in the map's one marking
+   colour (.me-marked), since a building has no icon to glow. */
+.leaflet-interactive.me-loot-picked,
+path.me-loot-picked {
+  stroke: var(--accent);
+  stroke-width: 3;
+  fill: var(--accent);
+  fill-opacity: 0.15;
+}
+
+/* The building a list row flew to: a thicker ring that pulses three times,
+   so the eye finds it after the flight. */
+path.me-loot-flown {
+  stroke-width: 4;
+  animation: me-loot-flown 0.9s ease-in-out 0.4s 3;
+}
+
+@keyframes me-loot-flown {
+  50% {
+    stroke-width: 10;
+    stroke-opacity: 0.4;
+  }
+}
+
+/* ---- Help guide dialog (phase 5) ---- */
+
+.help-dialog-box {
+  width: 720px;
+  max-width: 92vw;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.help-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.help-dialog-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.3px;
+}
+
+.help-close-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.help-close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.help-content {
+  overflow-y: auto;
+  padding: 12px 20px;
+  flex: 1;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.help-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.help-content::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+.help-content::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+
+.help-content::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}
+
+.help-section {
+  margin-bottom: 16px;
+}
+
+.help-section:last-child {
+  margin-bottom: 4px;
+}
+
+.help-section h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+
+.help-section p {
+  margin-bottom: 6px;
+}
+
+.help-section p:last-child {
+  margin-bottom: 0;
+}
+
+.help-lede {
+  color: var(--text-muted);
+  font-style: italic;
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
+
+.help-kbd-list {
+  display: grid;
+  grid-template-columns: minmax(140px, auto) 1fr;
+  gap: 4px 14px;
+  margin: 4px 0 2px;
+}
+
+.help-kbd-list dt {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.help-kbd-list dd {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.help-bullets {
+  margin: 4px 0 0 18px;
+  padding: 0;
+}
+
+.help-bullets li {
+  margin-bottom: 3px;
+  color: var(--text);
+}
+
+.help-bullets li b {
+  color: var(--text);
+}
+
+.help-content code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 0 4px;
+  border-radius: 3px;
+  color: var(--text);
+}
+
+.help-content kbd,
+.help-footer-hint kbd {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--text);
+  margin: 0 1px;
+}
+
+.help-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.help-footer-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.help-footer-docs {
+  margin: 0;
+  font-size: 11px;
+}
+
+.help-got-it-btn {
+  padding: 6px 20px;
+}
+
+/* ================================================================
+   Mobile — the sidebar becomes a bottom sheet
+   ================================================================
+
+   The editor is a two-column flex: a 320px panel and the map. On a phone that
+   panel IS the screen, so below the app's --bp-mobile breakpoint (840px; the
+   literal is repeated because @media cannot read a custom property) it leaves
+   the row and docks to the bottom edge over the map. The floating » button
+   LeftPanel.jsx renders (the wide screen's fold button, at a thumb's size)
+   opens it from the map's top-left corner, where the wide screen's panel
+   sits, and the sheet's top edge drags to resize it
+   (panels/SheetResizeHandle.jsx). Inside, the sheet is one scroller
+   (.me-sheet-body), so the tab body gets the sheet's height. The map keeps the whole viewport, which
+   is the only arrangement where a map editor is usable one-handed.
+
+   Kept in one block rather than sprinkled through the file so there is a single
+   place that describes the phone layout.
+   ================================================================ */
+
+@media (max-width: 840px) {
+  /* The sheet is absolutely positioned against the editor. `isolation: isolate`
+     above already makes this a stacking context; `relative` only adds the
+     containing block. */
+  .me-editor {
+    position: relative;
+  }
+
+  .me-sidebar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    min-width: 0;
+    max-height: 70%;
+    border-right: 0;
+    border-top: 1px solid var(--border);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px var(--shadow-strong);
+    transform: translateY(100%);
+    visibility: hidden; /* keeps its controls out of the tab order when shut */
+    transition:
+      transform 0.2s ease,
+      visibility 0.2s;
+  }
+
+  /* The drag strip on the sheet's top edge. Taller than it looks: a finger
+     needs the room, and the grip is only the visible part. */
+  .me-sheet-handle {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    margin-bottom: -14px;
+    /* Above the section it overlaps, so that strip takes the drag too. */
+    position: relative;
+    z-index: 1;
+    cursor: ns-resize;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .me-sheet-grip {
+    width: 56px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--text-muted);
+    opacity: 0.6;
+  }
+
+  .me-sheet-handle.dragging .me-sheet-grip {
+    background: var(--accent);
+    opacity: 1;
+  }
+
+  .me-sidebar-open {
+    transform: none;
+    visibility: visible;
+  }
+
+  /* The fold button's look (.me-fold-btn) at --tap-min, floating over the
+     map. Only the size, the place and a shadow to lift it off the map. */
+  .me-sheet-toggle {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 1002; /* over the sheet (1001, below) */
+    width: var(--tap-min);
+    height: var(--tap-min);
+    font-size: 20px;
+    box-shadow: 0 4px 14px var(--shadow-strong);
+  }
+
+  /* A tap leaves :hover and :focus on the button, so it stayed in the accent
+     colour, a big blue disc, after every tap. It keeps the wide screen's
+     neutral look; only a keyboard focus still shows the accent. */
+  .me-sheet-toggle:hover,
+  .me-sheet-toggle:focus:not(:focus-visible) {
+    background: var(--bg-hover);
+    border-color: var(--border);
+    color: var(--text-muted);
+  }
+
+  /* Zoom +/- at the Tools button's width and a thumb's height, so the three
+     line up and are easy to hit. */
+  /* The bar's 1px border on each side is inside the Tools button's width. */
+  .me-editor .leaflet-control-zoom.leaflet-bar a {
+    width: calc(var(--tap-min) - 2px);
+    height: var(--tap-min);
+    font-size: 22px;
+  }
+
+  /* The status bar's two halves do not fit on one phone line. */
+  .me-status-bar {
+    flex-wrap: wrap;
+    gap: 4px 10px;
+  }
+
+  /* Four tab labels + icons overflow a 360px row; let them scroll sideways
+     rather than squeezing each into an unreadable column. */
+  .me-tabs {
+    overflow-x: auto;
+  }
+
+  .me-tab {
+    flex: 1 0 auto;
+    min-height: var(--tap-min);
+    padding-inline: 14px;
+    white-space: nowrap;
+  }
+
+  /* Leaflet's controls sit under the app's top bar otherwise. */
+  .leaflet-top {
+    top: 8px;
+  }
+
+  /* The zoom control goes under the Tools button, as it goes under the folded
+     panel's strip on a wide screen. 10px is Leaflet's own control margin. */
+  .me-editor .leaflet-top.leaflet-left {
+    top: calc(12px + var(--tap-min) + 12px - 10px);
+    left: 2px;
+  }
+
+  /* The sheet is sized from the screen, not from the map. On a phone the
+     app's top bar, info bar and TLS banner leave the map about 200px, and a
+     sheet at 70% of that clipped its tab body, related links and status bar
+     (measured at 390x700: the sheet was 143px). Fixed to the viewport, just
+     above the activity bar, with a real height, the tab body takes what is
+     left and scrolls. It is an overlay either way. */
+  .me-sidebar {
+    position: fixed;
+    bottom: var(--bottom-height);
+    height: min(65dvh, 560px);
+    max-height: none;
+    z-index: 1001; /* over Leaflet's controls (1000), which come later */
+  }
+
+  /* `isolation: isolate` keeps everything in the editor at the editor's own
+     level, which was under the info bar (5): the fixed sheet's header went
+     under it. 6 clears the info bar and stays under the top bar (60), the
+     drawers (45/50) and modals (100). */
+  .me-editor {
+    z-index: 6;
+  }
+
+  /* One scroller for the whole sheet. Every section used to scroll on its
+     own, and the tab body, last in line, was left a box two event rows tall
+     under the sections above it (2026 Q4 phone test). Now each section is its
+     full height and the sheet scrolls past the ones above to the list; the
+     sheet drags taller for more. Children never shrink, or the flex column
+     would squeeze them back into the sheet. */
+  .me-sheet-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .me-sheet-body > * {
+    flex-shrink: 0;
+  }
+
+  .me-layers,
+  .me-location-list,
+  .me-tab-content,
+  .me-event-list,
+  .me-event-detail,
+  .me-ps-detail {
+    flex: none;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  /* The filter row stays at the sheet's top while the list scrolls, and each
+     category title sticks under it rather than over it. The row's height is
+     fixed so the titles know where it ends: a --tap-min search box and 8px
+     above and below. z-index 2: a title pushed out by the next category
+     slides under the row, not over it. */
+  .me-editor {
+    --me-filter-h: calc(var(--tap-min) + 16px);
+    --me-touch: 40px;
+  }
+
+  .me-event-filter {
+    height: var(--me-filter-h);
+    z-index: 2;
+  }
+
+  .me-event-list {
+    --list-sticky-top: var(--me-filter-h);
+  }
+
+  /* Thumb-sized rows and controls. --me-touch is a little under --tap-min so
+     a row's buttons leave its name room on a 360px screen. ListRow and
+     RowAction get theirs from the Parts tokens in index.css. */
+  .me-related > summary {
+    min-height: var(--tap-min);
+  }
+
+  .me-help-btn,
+  .me-expand-btn,
+  .me-link-btn {
+    width: var(--me-touch);
+    height: var(--me-touch);
+  }
+
+  .me-link-btn-text {
+    width: auto;
+  }
+}
+
+/* Slim style (index.css "Slim style"). The editor is already a dense panel
+   UI and its colours, corners and fields follow the tokens index.css
+   re-points, so only the two strips that kept the roomy Classic padding are
+   tightened here. `:where()` keeps the specificity of the rules above; this
+   sheet loads after index.css, so coming last is what makes it win. */
+@media not all and (max-width: 840px) {
+  :where(:root[data-style="slim"]) .me-sidebar-header {
+    padding: 10px 12px 8px;
+  }
+
+  :where(:root[data-style="slim"]) .me-tab {
+    padding: 6px 0;
+  }
+}
+
+/* Floating panel (wide screens, 2026 Q4). The panel leaves the row
+   and floats over the map's top-left corner as a card, so the map runs the
+   full width under it. Not movable. Leaflet's left controls and the grid's
+   z labels move right by --me-panel-space, so the panel never covers them. */
+@media not all and (max-width: 840px) {
+  .me-editor {
+    position: relative;
+    --me-panel-gap: 12px;
+    --me-panel-space: calc(var(--me-panel-w, 320px) + 2 * var(--me-panel-gap));
+  }
+
+  .me-editor:has(.me-sidebar-folded) {
+    --me-panel-space: calc(40px + 2 * var(--me-panel-gap));
+  }
+
+  .me-sidebar {
+    position: absolute;
+    top: var(--me-panel-gap);
+    bottom: var(--me-panel-gap);
+    left: var(--me-panel-gap);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius, 10px);
+    box-shadow: 0 8px 28px var(--shadow-strong);
+    overflow: hidden;
+  }
+
+  /* Folding animates: the card shrinks to the strip's size and the map's
+     controls slide along. `bottom` is a length in both states (never auto) so
+     the height can transition; --me-strip-h is the strip's own height (two
+     22px buttons, a 6px gap, 8px padding each side and the border). */
+  .me-editor {
+    --me-strip-h: 68px;
+  }
+
+  .me-sidebar {
+    transition:
+      width 0.22s ease,
+      min-width 0.22s ease,
+      bottom 0.22s ease;
+  }
+
+  .me-sidebar-folded {
+    bottom: calc(100% - var(--me-panel-gap) - var(--me-strip-h));
+    padding: 8px 0;
+  }
+
+  /* What appears after a fold or an unfold fades in rather than popping:
+     display:none -> shown restarts the animation each time. .me-sheet-body is
+     no box here (display: contents), so its children fade themselves. */
+  .me-sidebar > *,
+  .me-sheet-body > * {
+    animation: me-panel-fade 0.22s ease;
+  }
+
+  .me-editor .leaflet-left {
+    left: var(--me-panel-space);
+    transition:
+      left 0.22s ease,
+      top 0.22s ease;
+  }
+
+  /* Folded, the zoom control moves under the strip's buttons, centred on it
+     (the strip is 40px, the control 34px). The 10px is Leaflet's own control
+     margin, taken back so the gaps match the strip's. The zoom control is the
+     only one on the left. */
+  .me-editor:has(.me-sidebar-folded) .leaflet-top.leaflet-left {
+    left: calc(var(--me-panel-gap) + 3px - 10px);
+    top: calc(2 * var(--me-panel-gap) + var(--me-strip-h) - 10px);
+  }
+
+  .me-editor .me-grid-label.z {
+    left: calc(var(--me-panel-space) + 2px);
+  }
+}
+
+@keyframes me-panel-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .me-sidebar,
+  .me-sidebar > *,
+  .me-sheet-body > *,
+  .me-editor .leaflet-left {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* The Loot finder on a phone: a bottom sheet with a drag handle, like Tools. */
+@media (max-width: 840px) {
+  .me-loot-drawer {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-width: none;
+    max-height: 70%;
+  }
+
+  /* No room for the title beside the views; the panel's label names it. */
+  .me-loot-head-title {
+    display: none;
+  }
+
+  /* One sheet at a time: Tools opened over the finder hides it, and the
+     finder opening shuts Tools (LeftPanel.jsx). */
+  .me-editor:has(.me-sidebar-open) .me-loot-drawer {
+    display: none;
+  }
+}
+
+/* Items tab: the class name and its mod on two lines, broken between words
+   (or at _ and capitals' boundaries only when one word is wider than the panel). */
+.me-mod-item-head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.me-mod-item-head .me-event-detail-name {
+  max-width: 100%;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.me-mod-item-head .me-mod-item-mod {
+  margin-left: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* The end of the class list: loads the next page when it scrolls into view. */
+.me-mod-item-more {
+  display: block;
+  width: 100%;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+
+
+
+
+
+
+/* The panel's right edge drags its width (wide screens, SidebarWidthHandle).
+   No transition while it drags, or the edge trails the pointer. */
+.me-sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 2;
+  touch-action: none;
+}
+
+.me-sidebar-resize:hover,
+.me-sidebar-resize:focus-visible,
+.me-sidebar.is-resizing .me-sidebar-resize {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  outline: none;
+}
+
+/* The height handle under an open Layers or Locations section
+   (SectionHeightHandle.jsx): a thin bar over the section's bottom border. */
+.me-section-resize {
+  flex: none;
+  height: 6px;
+  margin-top: -6px;
+  position: relative;
+  z-index: 2;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.me-section-resize:hover,
+.me-section-resize:focus-visible,
+.me-section-resize:active {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  outline: none;
+}
+
+.me-sidebar.is-resizing,
+.me-editor:has(.me-sidebar.is-resizing) .leaflet-left {
+  transition: none;
+}
+
+.me-sidebar.is-resizing,
+.me-sidebar.is-resizing-section {
+  user-select: none;
+}
+
+/* Too narrow for the tab names: the tabs show their icons, and each name
+   is the tab's tooltip. */
+@container me-panel (max-width: 300px) {
+  .me-tab-label {
+    display: none;
+  }
+
+  .me-tab-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* A placed object's Edit form, under its row (ObjectRow). */
+.me-object-row .me-mod-item-edit {
+  padding: 0 8px 8px;
+}
+
+.me-mod-item-edit {
+  flex-basis: 100%;
+  margin-top: 6px;
+}
+
+.me-mod-item-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.me-mod-item-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.me-mod-item-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.me-mod-item-edit-actions .me-detail-save-btn {
+  margin-top: 0;
+}
+

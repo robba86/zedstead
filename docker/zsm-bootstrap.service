@@ -1,0 +1,17 @@
+[Unit]
+Description=zsm container bootstrap (seed config, prep + start DayZ server)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# The prep pipeline (SteamCMD update + mod downloads) can take many minutes;
+# don't let systemd kill it on the default start timeout.
+TimeoutStartSec=infinity
+ExecStart=/usr/local/bin/zsm-bootstrap
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,195 @@
+/* RangeField.jsx: a slider with a tick at each step and a small number box
+   at its right, in a two-column grid. A note, when there is one, is the
+   second row across both columns. The box stays at the slider's right at
+   every width: the slider column shrinks and its labels thin out instead.
+   The thumb has a fixed size (--range-thumb), and the tick row is inset by half of it, so each tick sits under the thumb's centre at that
+   value. Colours are theme tokens only. */
+.range-field {
+  --range-thumb: 18px;
+  --range-track: 4px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.range-field-slider {
+  position: relative;
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.range-field input[type='range'] {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  height: var(--range-thumb);
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.range-field input[type='range']::-webkit-slider-runnable-track {
+  height: var(--range-track);
+  border-radius: var(--range-track);
+  background: var(--border);
+}
+
+.range-field input[type='range']::-moz-range-track {
+  height: var(--range-track);
+  border-radius: var(--range-track);
+  background: var(--border);
+}
+
+.range-field input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--range-thumb);
+  height: var(--range-thumb);
+  margin-top: calc((var(--range-track) - var(--range-thumb)) / 2);
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.range-field input[type='range']::-moz-range-thumb {
+  width: var(--range-thumb);
+  height: var(--range-thumb);
+  box-sizing: border-box;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.range-field input[type='range']:focus-visible {
+  outline: none;
+}
+
+.range-field input[type='range']:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.range-field input[type='range']:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* The file leaves the key out: a hollow knob sits on the server's default,
+   and a note under the scale says so. A set value has a filled knob. */
+.range-field-unset input[type='range']::-webkit-slider-thumb {
+  border: 2px dashed var(--text-muted);
+  background: var(--bg);
+}
+
+.range-field-unset input[type='range']::-moz-range-thumb {
+  border: 2px dashed var(--text-muted);
+  background: var(--bg);
+}
+
+/* The "Default" pill under the default's number in the scale
+   (.default-pill, index.css). --at is the default's share of the scale, 0 to
+   1. The pill slides by the same share of its own width, from the slider's
+   left edge to its right edge, so it never sticks out at either end. The
+   scale is one pill row taller for it. */
+.range-field-scale.range-field-scale-default {
+  height: 42px;
+}
+
+.range-field-default-pill {
+  position: absolute;
+  top: 23px;
+  left: calc(var(--at) * (100% + var(--range-thumb)) - var(--range-thumb) / 2);
+  transform: translateX(calc(var(--at) * -100%));
+}
+
+/* The default's place on the scale: a short accent bar, taller than a tick. */
+.range-field-default {
+  position: absolute;
+  top: -1px;
+  width: 3px;
+  height: 9px;
+  border-radius: 1px;
+  background: var(--accent);
+  transform: translateX(-50%);
+}
+
+/* The second grid row, across the slider and the box. */
+.range-field-note {
+  grid-column: 1 / -1;
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.range-field-scale {
+  position: relative;
+  display: block;
+  height: 22px;
+  margin: 2px calc(var(--range-thumb) / 2) 0;
+}
+
+.range-field-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 6px;
+  background: var(--text-muted);
+  transform: translateX(-50%);
+}
+
+.range-field-label {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Beats `.step-list .unit-input { width: 100% }` and
+   `.step-list input[type="number"] { width: 100% }`, which is why the input
+   selectors name the element and both classes: the box stays small. */
+.range-field .unit-input,
+.range-field > input.text-input.range-field-box {
+  flex: none;
+  width: 110px;
+}
+
+.range-field .unit-input > input.range-field-box,
+.range-field > input.text-input.range-field-box {
+  min-width: 0;
+}
+
+/* Where the browser can size a field by its content, the box is as wide as
+   its number (or its placeholder) and grows as you type. The minimum is the
+   width of the scale's longest value (--box-ch, set by RangeField.jsx), so
+   the box and the slider beside it keep their width while the knob moves
+   from 9 to 10. The 18px is the border and the number spinner. A browser
+   without `field-sizing` keeps the fixed 110px above. */
+@supports (field-sizing: content) {
+  .range-field .unit-input,
+  .range-field > input.text-input.range-field-box {
+    width: auto;
+    max-width: 100%;
+  }
+
+  .range-field .unit-input > input.range-field-box,
+  .range-field > input.text-input.range-field-box {
+    field-sizing: content;
+    width: auto;
+    max-width: 100%;
+  }
+
+  .range-field > input.text-input.range-field-box {
+    min-width: calc(var(--box-ch, 2) * 1ch + var(--field-pad-x) * 2 + 18px);
+  }
+
+  .range-field .unit-input > input.range-field-box {
+    min-width: calc(var(--box-ch, 2) * 1ch + var(--unit-ch) * 1ch + var(--field-pad-x) + 38px);
+  }
+}

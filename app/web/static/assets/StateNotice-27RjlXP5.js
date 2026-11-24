@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-CDO3wmf-.js";var t=e();function n({active:e=!1,children:n}){return(0,t.jsx)(`div`,{className:e?`state-notice is-active`:`state-notice`,children:n})}export{n as t};

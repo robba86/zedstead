@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-CDO3wmf-.js";import{R as t}from"./index-CdAj70d6.js";var n=e();function r(e){return(0,n.jsx)(t,{strokeWidth:1.5,"aria-hidden":`true`,...e})}export{r as t};

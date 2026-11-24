@@ -1,0 +1,256 @@
+/* Theme for prism-react-editor (CodeArea.jsx) ------------------------------
+ *
+ * The package ships 14 fixed-palette themes; none of them can follow the app's
+ * light/dark switch, and its own README points at CSS variables as the right
+ * answer for a two-theme site. So this file IS our theme: every colour below
+ * resolves to one of index.css's tokens, which `data-theme` already swaps.
+ * Never put a raw hex here — the same rule as everywhere else in the app.
+ *
+ * Two halves:
+ *   1. `--pce-*` — the editor's own chrome (cursor, selection, line numbers,
+ *      search widget, indent guides). Full list in the package's themes/*.css.
+ *   2. `.token.*` — syntax colours. Class names come from the Prism grammars
+ *      (see prismSetup.js): xml uses `tag`/`attr-name`/`attr-value`, json uses
+ *      `property` for keys, our cfg grammar uses `key`. The grouping mirrors
+ *      what the old hand-rolled tokenizer painted, so the editor didn't change
+ *      colour when it changed engine.
+ */
+
+.prism-code-editor {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  --padding-inline: 12px;
+
+  --pce-bg: var(--bg);
+  --pce-cursor: var(--text);
+  --pce-selection: color-mix(in srgb, var(--accent) 35%, transparent);
+  --pce-line-number: var(--text-muted);
+  --pce-bg-highlight: color-mix(in srgb, var(--text) 5%, transparent);
+  --pce-guide-indent: var(--border);
+  --pce-bg-fold: var(--text-muted);
+  --pce-selection-match: color-mix(in srgb, var(--warning) 28%, transparent);
+  --pce-search-match: color-mix(in srgb, var(--warning) 45%, transparent);
+
+  /* Search widget (Ctrl+F) + the copy button. */
+  --pce-widget-border: var(--border);
+  --pce-widget-bg: var(--bg-raised);
+  --pce-widget-color: var(--text);
+  --pce-widget-color-active: var(--text-heading);
+  --pce-widget-color-options: var(--text-muted);
+  --pce-widget-bg-input: var(--bg);
+  --pce-widget-bg-hover: var(--bg-hover);
+  --pce-widget-bg-active: color-mix(in srgb, var(--accent) 30%, transparent);
+  --pce-widget-focus: var(--accent);
+  --pce-widget-bg-error: color-mix(in srgb, var(--danger) 25%, transparent);
+  --pce-widget-error: var(--danger);
+}
+
+.active-line {
+  --pce-line-number: var(--text);
+}
+
+.active-indent {
+  --pce-guide-indent: var(--accent);
+}
+
+/* --- syntax ------------------------------------------------------------- */
+
+[class*="language-"] {
+  color: var(--text);
+}
+
+.token.punctuation,
+.token.operator,
+.token.attr-equals {
+  color: var(--text-muted);
+}
+
+.token.comment,
+.token.prolog,
+.token.cdata,
+.token.doctype {
+  color: var(--text-muted);
+}
+
+.token.comment {
+  font-style: italic;
+}
+
+/* XML element names, JSON object keys, cfg keys — the "what is this" column. */
+.token.tag,
+.token.doctype-tag,
+.token.property,
+.token.key,
+.token.section-name,
+.token.selector {
+  color: var(--accent);
+}
+
+.token.attr-name {
+  color: var(--tok-attr);
+}
+
+.token.attr-value,
+.token.string,
+.token.char,
+.token.inner-value,
+.token.string-property {
+  color: var(--good);
+}
+
+/* The grammars tokenize a string's own quotes as punctuation; muting them
+   inside a value reads as a broken string, not as chrome. */
+.token.attr-value .token.punctuation,
+.token.string .token.punctuation {
+  color: inherit;
+}
+
+.token.number,
+.token.boolean,
+.token.constant,
+.token.entity,
+.token.keyword,
+.token.null,
+.token.unit {
+  color: var(--warning);
+}
+
+.token.class-name,
+.token.maybe-class-name,
+.token.function,
+.token.variable,
+.token.builtin {
+  color: var(--accent-hover);
+}
+
+.token.important,
+.token.bold {
+  font-weight: 700;
+}
+
+.token.italic {
+  font-style: italic;
+}
+
+/* Rainbow brackets cycle the palette rather than inventing six new colours. */
+.token.bracket-level-0,
+.token.bracket-level-6 {
+  color: var(--accent);
+}
+
+.token.bracket-level-1,
+.token.bracket-level-7 {
+  color: var(--good);
+}
+
+.token.bracket-level-2,
+.token.bracket-level-8 {
+  color: var(--warning);
+}
+
+.token.bracket-level-3,
+.token.bracket-level-9 {
+  color: var(--tok-attr);
+}
+
+.token.bracket-level-4,
+.token.bracket-level-10 {
+  color: var(--accent-hover);
+}
+
+.token.bracket-level-5,
+.token.bracket-level-11 {
+  color: var(--text);
+}
+
+.token.bracket-error {
+  color: var(--danger);
+}
+
+.token.markup-bracket {
+  color: inherit;
+}
+
+.active-bracket {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--good) 60%, transparent),
+    inset 0 0 0 9in color-mix(in srgb, var(--good) 25%, transparent);
+}
+
+.active-tagname,
+.word-matches span {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--text-muted) 60%, transparent),
+    inset 0 0 0 9in color-mix(in srgb, var(--text-muted) 35%, transparent);
+}
+
+/* --- the box ------------------------------------------------------------- */
+/* Chrome around the editor, matching the other form controls. The editor is
+   its own scroll container (layout.css sets `overflow: auto`), so the height
+   bounds go on it directly — there is no outer wrapper to size. */
+
+.prism-code-editor.code-area {
+  box-sizing: border-box;
+  min-height: 15vh;
+  max-height: 100%;
+  resize: vertical;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.prism-code-editor.code-area.pce-focus {
+  border-color: var(--accent);
+}
+
+/* --- word-wrap toggle (CodeArea's WrapButton) ----------------------------- */
+/* Same trick as the package's copy button (copy.css): an overlay box filling
+   the content, and a sticky button pulled up by a large negative margin so it
+   takes no line of its own and stays in the visible top-right corner. Unlike
+   the copy button it is always visible, dimmed until hovered, so the toggle
+   can be found without knowing it is there. */
+
+.code-area-wrap-box {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.code-area-wrap {
+  all: unset;
+  position: sticky;
+  top: 0.5em;
+  right: 0.5em;
+  margin: -9in 0 0;
+  padding: 0.5em;
+  display: grid;
+  align-items: center;
+  z-index: 3;
+  cursor: pointer;
+  pointer-events: auto;
+  border-radius: 0.3em;
+  box-shadow: inset 0 0 0 1px var(--pce-widget-border);
+  background: var(--pce-widget-bg);
+  color: var(--pce-widget-color-options);
+  opacity: 0.55;
+  transition: opacity 0.1s ease-out;
+}
+
+/* Read-only areas also carry the copy button in that corner. */
+.code-area-wrap.beside-copy {
+  right: 3em;
+}
+
+.code-area-wrap.is-on {
+  color: var(--accent);
+}
+
+.prism-code-editor:hover .code-area-wrap,
+.code-area-wrap:focus-visible {
+  opacity: 1;
+}
+
+.code-area-wrap:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--pce-widget-focus);
+}

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- resizes-content: Android Chrome shrinks the page for the keyboard, so the
+         fixed Activity bar sits on the keyboard instead of a gap above it. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+    <title>Zedstead</title>
+    <!-- Stamps the theme before the first paint. A file, never inline: the
+         panel's script policy refuses inline scripts. No async/defer, so it
+         runs before the body renders. -->
+    <script src="/theme-init.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

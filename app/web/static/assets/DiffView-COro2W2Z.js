@@ -1,0 +1,2 @@
+import{t as e}from"./jsx-runtime-CDO3wmf-.js";var t=e();function n(e){return e.startsWith(`+++`)||e.startsWith(`---`)||e.startsWith(`\\`)?`diff-meta`:e.startsWith(`@@`)?`diff-hunk`:e.startsWith(`+`)?`diff-add`:e.startsWith(`-`)?`diff-del`:`diff-ctx`}function r({text:e}){return(0,t.jsx)(`pre`,{className:`diff-view`,children:String(e??``).split(`
+`).map((e,r)=>(0,t.jsx)(`span`,{className:`diff-line ${n(e)}`,children:e||` `},r))})}export{r as t};

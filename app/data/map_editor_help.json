@@ -1,0 +1,210 @@
+{
+  "title": "Map Editor — Quick Guide",
+  "lede": "Leaflet-based editor for DayZ mission data. All changes write straight to the underlying XML / JSON files and broadcast live over WebSocket — edits you make elsewhere (or other admins make) show up immediately.",
+  "sections": [
+    {
+      "title": "Map basics",
+      "blocks": [
+        {
+          "type": "definitions",
+          "items": [
+            ["Scroll wheel", "Zoom in / out. Icons and zone circles scale with zoom."],
+            ["Click + drag empty map", "Pan."],
+            ["Status bar (bottom)", "Live cursor coordinates in game X, Z."],
+            ["Map selector (top)", "Switch the visible terrain. Non-active maps show locations only — editing is locked to the currently running map."]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Layers panel (left sidebar)",
+      "blocks": [
+        {
+          "type": "definitions",
+          "items": [
+            ["Locations", "Town and landmark names. A town's label sits at the middle of its buildings. A second line gives the in-game label where it says more, such as the Cyrillic on Chernarus and Sakhal."],
+            ["All Spawns", "Event spawn markers. Toggle all, or per-event from the Spawns tab."],
+            ["  Labels", "Show event name on each spawn marker."],
+            ["  Spawn Zones", "Inner ring = `saferadius` (exclusion), outer ring = `distanceradius` (spread). Visible at zoom 3+."],
+            ["Out-of-bounds", "Include spawns whose X / Z fall outside the map boundary."],
+            ["Objects", "Objects placed for good from the Items tab, from Zedstead's Object Spawner file `zsm-objects.json`, each with its item's icon. A disabled one is faded. Click one to select it in the Items tab."],
+            ["Player Spawns", "Player spawn positions — green = fresh, orange = hopper, purple = traveller."],
+            ["Traders", "TraderPlus NPCs, objects, safe zones and garages (when TraderPlus is installed)."],
+            ["Expansion Trader Zones", "Expansion's trading zones (violet), one file per zone. Drag to move, drag the edge handle to resize, click the circle for its buy/sell percentages — the zone's stock table is never loaded into the browser."],
+            ["Expansion Safe Zones", "`SafeZoneSettings.json` (sky blue) — circles, cylinders (their height is in the tooltip) and polygons. Drag a polygon corner to reshape it."],
+            ["Expansion Spawn Points", "Player spawn positions from `SpawnSettings.json` (pink), grouped by location name. Live only when Expansion's spawn selection is on — the Players tab says which of the two spawn systems the server is using."],
+            ["Expansion AI Patrols", "Patrol routes (red) from `AIPatrolSettings.json`. The line is the route — Expansion walks the waypoints in order. Drag a waypoint to move it, click the line for the patrol, its **+ Waypoint** extends the route. A patrol tied to a building class (ObjectClassName: guard towers, heli crashes) runs at every building of that class, so it has no route to draw and is counted instead. Its waypoints are metres from the building; edit them on the Raw tab of Expansion AI Patrols."],
+            ["Expansion AI Roaming", "Where roaming AI may spawn (amber) from `AILocationSettings.json`, with the no-go areas it must stay out of in grey. Click one to rename, retype, resize, switch it off, copy it elsewhere or delete it. A disabled location still draws — it is in the file."],
+            ["Expansion Vehicle Spawns", "Where vehicles bought at a trader appear, from `MarketSettings.json`: a teal dot lettered L, A, W or T (land, air, water, train) with an arrow for the heading. Drag to move it; the height stays, because land and air vehicles are dropped onto the ground *below* it and zsm cannot see the ground. Click for heading, height and Copy here… Deleting one is the Raw tab of the Market settings."],
+            ["Expansion Map Markers", "The server markers every player sees, from `MapSettings.json`, drawn in each marker's own colour. Drag to move; click to change text, icon, colour or height, or Copy here… (a copy gets its own UID)."],
+            ["Expansion Build Zones", "Base-building zones (rose) from `BaseBuildingSettings.json`. Inside one, only the listed items can be placed, or all but them — the popup says which. Drag to move, drag the edge to resize. Expansion measures the distance in 3D, so the height (in the popup) should be the ground's."],
+            ["Expansion Missions", "Airdrops (orange) and contaminated areas (lime). Read-only — their positions couple to drop heights and ring geometry, which the Expansion settings editors own."],
+            ["Collisions", "Opens a scan panel for duplicate coords, radius conflicts, and cross-event / cross-zone overlaps."],
+            ["Loot", "Opens the Loot finder over the right edge of the map. Item: pick any item from a list grouped by category, narrowed by where it is found (Military, Town, Farm …) and by mod, and every building where it can spawn is marked, with its category, tag, usages and nominal explained. Mod: the same for every item of one mod. Building: click a building on the map to see its loot containers and every item that can spawn in it. It matches the item's usages against each building's, and its category and tag against the building's loot containers, read from the mission's `types.xml`, the mod types files registered in `cfgeconomycore.xml`, `mapgroupproto.xml` and `mapgrouppos.xml`. Value tiers (Tier1–4) come from areaflags.map, which Zedstead cannot read, so a building shown may still never get this item if its area's tier is not in the item's list. Not counted: attachments and cargo, dynamic event loot, and wrecks and other cluster loot. Works on a previewed map too, from that map's installed mission."]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The **Expansion** layers stay greyed out until DayZ-Expansion has written its map data — that happens the first time the server starts with the mods loaded, not when the mods are installed."
+        },
+        {
+          "type": "paragraph",
+          "text": "Every layer except **Locations** draws the running mission's own data, so all of them grey out while you are previewing another map from the map picker. Click the **Layers** heading to collapse the whole list — it stays collapsed until you open it again, and the badge counts what is still switched on."
+        },
+        {
+          "type": "paragraph",
+          "text": "With both TraderPlus and Expansion Market configured, a **Two trader systems** note appears under the layer list: they are separate systems with separate files, prices and NPCs, and it lists every place where one's zone reaches into the other's."
+        }
+      ]
+    },
+    {
+      "title": "Selecting and moving points",
+      "blocks": [
+        {
+          "type": "definitions",
+          "items": [
+            ["Click marker", "Popup with X / Z / Angle fields — plus event nominal / active for event spawns, or class / Id / orientation for traders. **Save** / **Delete** at the bottom."],
+            ["Drag marker", "Move a single point. Confirms before saving the new coordinates."],
+            ["[[Ctrl]] + click + drag", "Box-select every spawn / player-spawn / trader / garage marker inside the rectangle."],
+            ["[[Shift]] while box-selecting", "Add to the existing selection instead of replacing it."],
+            ["Drag any selected marker", "Moves the entire selection by the same delta. Confirms, then saves in parallel with a progress overlay."],
+            ["\"Delete selected\" bar", "Bulk-delete every highlighted point (confirms first)."],
+            ["[[Esc]]", "Clear selection."]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Adding points (Add Mode)",
+      "blocks": [
+        { "type": "paragraph", "text": "An **Adding: …** bar appears across the top when you're in add mode. Click the map to place, or press **Cancel**." },
+        {
+          "type": "definitions",
+          "items": [
+            ["Event spawn", "Spawns tab → **+** next to an event row → click map."],
+            ["Create new event", "Spawns tab → **+** in the filter row. Suggestions are pulled from `types.xml` and mod type files. Arrow-keys / Enter pick a suggestion. Creates entries in both `events.xml` and `cfgeventspawns.xml`, then jumps into add mode."],
+            ["Player spawn position", "Player tab → expand a section → **+** next to a group."],
+            ["Trader NPC / object", "Traders tab → **+** next to the section → type a classname → click map."],
+            ["Clone a trader", "Traders tab → clipboard icon on a trader row — click map to drop a copy with the same Id / role / clothes."],
+            ["Safe zone", "Traders tab → **+** on Safe Zones. Once placed, drag the white edge handle to resize, drag the green center dot to move."],
+            ["Garage NPC", "Traders tab → **+** on Garage NPCs."]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Spawns tab",
+      "blocks": [
+        { "type": "paragraph", "text": "Events are grouped by category (Vehicles, Animals, Infected, Crashes, Static, …). Each row has:" },
+        {
+          "type": "bullets",
+          "items": [
+            "**Checkbox** — show / hide that event's markers on the map.",
+            "**Pencil** — detail editor: nominal / min / max / lifetime / restock, safe / distance / cleanup radii, flags (deletable, init_random, remove_damaged), position & limit, child types.",
+            "**+** — enter add mode for that event.",
+            "**(count)** — number of spawn points in `cfgeventspawns.xml`."
+          ]
+        },
+        { "type": "paragraph", "text": "Search box at the top auto-expands categories while filtering and restores your collapsed state when cleared." }
+      ]
+    },
+    {
+      "title": "Player Spawns tab",
+      "blocks": [
+        { "type": "paragraph", "text": "Three sections from `cfgPlayerSpawnPoints.xml`: **Fresh** (green), **Hoppers** (orange), **Travellers** (purple). Each holds groups of positions." },
+        {
+          "type": "bullets",
+          "items": [
+            "**Section header** — click to expand. Gear icon opens the section parameter editor (spawn / generator / group params with inline descriptions).",
+            "**Click a group name** — fly camera to the first position.",
+            "**+** on a group — click map to add a position to it.",
+            "**Trash** on a group — remove the group and all its positions.",
+            "**+ Add Group** — create a new named group inside the section."
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "With DayZ-Expansion installed the tab also lists **Expansion**'s spawn locations from `SpawnSettings.json`, and says which of the two systems is live. Expansion's own documentation defines it: with `EnableSpawnSelection` off players spawn randomly like vanilla — from the sections above — and with it on they choose from Expansion's locations instead. Only one list is used at a time. Expansion's positions are moved by dragging them on the map; adding and deleting them is done in its settings editor."
+        }
+      ]
+    },
+    {
+      "title": "Traders tab",
+      "traderplus_only": true,
+      "blocks": [
+        { "type": "paragraph", "text": "From `TraderPlusGeneralConfig.json`, `TraderPlusSafeZoneConfig.json`, and the garage config. Everything is draggable and multi-select-aware." },
+        {
+          "type": "bullets",
+          "items": [
+            "**Trader NPCs** — Id badge (same Id shares stock), given name, role. Popup lets you switch class from a dropdown of installed classes or type a custom one, and pick Id / categories from the IDs config.",
+            "**Trader Objects** — static props (ATMs, stands, barriers). Popup edits class and X / Y / Z / orientation.",
+            "**Safe Zones** — dashed green circle. Drag the white edge handle to resize (updates `radius`); drag the center dot to move.",
+            "**Garage NPCs** — parking attendants from the garage config.",
+            "**Clone** — copy an entry to a new map position, preserving linked data."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Items tab",
+      "blocks": [
+        { "type": "paragraph", "text": "Set up an installed mod's items without opening the mod's page. Pick a mod, then one of its classes. The list is the one the mod page's Spawn test offers, and a **types** badge marks a class that has a `types.xml` entry." },
+        {
+          "type": "bullets",
+          "items": [
+            "**Spawn points (Central Economy)** — an event in `events.xml` whose child is the class, with its points in `cfgeventspawns.xml`. **Add points** on an event that already spawns the class, or **New event** to make one, then click the map. The economy spawns it again after it is taken. A new event starts with nominal 1: raise nominal, max and the child's max in the Spawns tab to fill more points at once.",
+            "**Objects (Object Spawner)** — **Place object**, then click the map. DayZ places it at every start and never removes it, which suits a building or a prop. Zedstead writes it to its own `zsm-objects.json` and lists that file in `cfggameplay.json`; it lands on the ground unless you type Y in the bar. DayZ reads it only while serverDZ.cfg has `enableCfgGameplayFile = 1`: the tab's **DayZ reads cfggameplay.json** switch sets it (admins), and its arrow opens the same field in the Server config. The Objects layer shows each one with its item's icon. Click one on the map to select it in **Placed objects** at the top of the tab, which lists every object of every mod. Each row has **Edit** (drag its marker or click a new spot on the map, or type its X, Y, Z, yaw, pitch and roll, then **Save**. A move sets Y to the ground there unless you typed Y, and **Y to ground** does it by hand), **Disable** (Zedstead moves it to `zsm-objects-disabled.json`, which DayZ never reads, and **Enable** moves it back), **Duplicate** (click the map to place a copy with the same class and rotation) and **Delete**.",
+            "**Test (temporary)** — starts a Spawn test: click the map, and the items appear at that point when the server starts. The first player who joins is moved there. **End test & restore** on the mod's page puts `init.c` and the storage folder back.",
+            "**types.xml entry** — edit the class's category, nominal, min, lifetime, restock, usage, value, tag and flags, as on the Types page. An entry in a mod's `custom/` copy lasts only until the next XML merge, and the save says so."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Collisions scan",
+      "blocks": [
+        { "type": "paragraph", "text": "Click **Collisions** in Layers to open the filter panel. Four modes:" },
+        {
+          "type": "bullets",
+          "items": [
+            "**Event Spawns** — duplicate coords and (optional) cross-event overlaps / radius conflicts per event type.",
+            "**Player Spawns** — duplicate coords, tight clusters, and cross-section overlaps.",
+            "**Territories** — zones from territory XMLs and effect areas.",
+            "**All** — everything above plus spawn-in-safezone, spawn-in-territory, trader / garage proximity."
+          ]
+        },
+        { "type": "paragraph", "text": "Check the types you want to include (search box filters the list) and press **Scan**. Rings are coloured by severity (red / orange / blue) and a dashed line connects each pair — click a ring for details. The Collisions label shows the current count, and the URL encodes your selection so you can share it." }
+      ]
+    },
+    {
+      "title": "Contaminated zones — two unrelated sources",
+      "blocks": [
+        { "type": "paragraph", "text": "\"Contaminated zone\" is overloaded in DayZ. The two sources are configured separately and behave differently:" },
+        {
+          "type": "bullets",
+          "items": [
+            "**`cfgEffectArea.json`** — *world-fixed* zones (e.g. Pavlovo, Tisy, ship-bow). Not editable in this tool; edit them in **Configs → Effect Areas**. They appear here only via the **Collisions** layer when checking for spawn overlaps.",
+            "**`events.xml` → `StaticContaminatedArea` event** — *dynamic* mobile contaminated zones spawned at runtime via the loot economy. Edited like any other event in this tool — visible in the Spawns sidebar under *Contamination*, with normal map markers and the contamination icon. Despite the name \"Static\", these are dynamic-by-event because they spawn on the events.xml lifecycle."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Tips & nuances",
+      "blocks": [
+        {
+          "type": "bullets",
+          "items": [
+            "**Panel width** — drag the panel's right edge to make it wider or narrower (double-click it for the default). Too narrow for the tab names, the tabs show only their icons. This browser remembers the width.",
+            "**Live sync** — edits in other browser windows or on disk push updates via WebSocket. The **Connected** / **Disconnected** chip in the status bar shows the link state.",
+            "**URL state** — active layers and the full collision filter persist as query params, so bookmarks / shared links reopen the same view.",
+            "**Out-of-bounds** is off by default to keep vanilla Chernarus quiet — turn it on if your map has negative coords (some mods / larger terrains).",
+            "**Zone circles** appear at zoom 3+ only, to keep the overview uncluttered.",
+            "**Navigate-to-event** — on a spawn popup, click the red title to jump straight to that event's detail editor.",
+            "A save overlay (\"Saving positions … n/N\") appears during bulk moves / deletes. Don't close the browser or zsm while it's visible."
+          ]
+        }
+      ]
+    }
+  ]
+}

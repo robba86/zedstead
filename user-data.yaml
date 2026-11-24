@@ -1,0 +1,88 @@
+#cloud-config
+# =============================================================================
+# Zedstead — cloud-init user data
+#
+# Paste this into your provider's "user data" / "cloud-init" field when you
+# CREATE the server (Hetzner has it in the web console and in
+# `hcloud server create --user-data-from-file`; Contabo takes it through the
+# API and `cntb`). The box then provisions itself on first boot and you never
+# SSH in to set it up.
+#
+#   1. Replace the SSH key below with your own public key.
+#   2. Optionally change the username `dayz` — it appears in FOUR places,
+#      marked "username:" in the comments. All four must match.
+#   3. Paste, create the server, wait about five minutes.
+#
+# WHAT THIS FILE DOES NOT CONTAIN, ON PURPOSE:
+#   No `apt` lines, no `sysctl`, no swap commands. Every one of those lives in
+#   `zsm bootstrap-vps` (and the package list in `install.sh --yes`),
+#   so there is exactly one copy of the provisioning logic. If you find
+#   yourself adding a package or a kernel setting here, add it there instead —
+#   two copies drift, and the one in this file is the one nobody updates.
+#
+# WHAT IS LEFT FOR YOU AFTERWARDS:
+#   `zsm init`, which asks for your Steam login. That step needs a human: Steam
+#   Guard sends a code to your phone or email and no unattended script can
+#   answer it. So this file gets you to "everything installed and configured,
+#   ready for one login", not to a running server.
+# =============================================================================
+
+users:
+  # username: change here (1 of 4)
+  - name: dayz
+    shell: /bin/bash
+    # `sudo` on Debian/Ubuntu. On a RHEL-family image use `wheel`.
+    groups: [sudo]
+    # zsm never runs as root; it escalates per step. install.sh --yes
+    # and the bootstrap's sysctl/swap steps use `sudo -n`, so this has to be
+    # passwordless or first boot stops at a prompt nobody is there to answer.
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAREPLACE_THIS_WITH_YOUR_PUBLIC_KEY you@example.com
+
+# Keep root reachable by key until you have confirmed you can log in as the
+# user above. Set `disable_root: true` once you have.
+disable_root: false
+
+runcmd:
+  # 1. Fetch the installer and run it: zsm plus the OS packages the DayZ
+  #    server needs (the package list is install.sh's, shared with the
+  #    Dockerfile and `zsm doctor`). Both as the user — install.sh installs
+  #    into $HOME, so running it as root would install zsm for root. The
+  #    file is saved in that user's own home, not under a fixed name in the
+  #    shared /tmp, and `&&` means a failed download runs nothing.
+  #    The long GitHub URL, not the short https://zedstead.com/install.sh the
+  #    site prints: zedstead.com does not resolve at all — NXDOMAIN straight
+  #    from the .app registry, measured in 2026 Q3 — and this curl runs
+  #    unattended on first boot with nobody there to watch it fail. Swap
+  #    it in once the domain is up; the deploy-on-a-vps docs page holds off for
+  #    the same reason.
+  #    username: change here (2 of 4)
+  - [su, -l, dayz, -c, "curl -fsSL https://raw.githubusercontent.com/robba86/zedstead/main/install.sh -o $HOME/zsm-install.sh && sh $HOME/zsm-install.sh --yes"]
+
+  # 2. Prepare the host: systemd lingering (so the server survives logout),
+  #    swap on a small box, file-handle limits, NTP. Reports by default, so
+  #    --apply is what makes it act and --yes is what stops it asking.
+  #    The user already exists by now, so that step is a no-op.
+  #    username: change here (3 of 4) — twice on this line
+  #    `--yes` is the ROOT group's flag, so it comes before the subcommand.
+  - [su, -l, dayz, -c, "$HOME/.local/bin/zsm --yes bootstrap-vps --user dayz --apply"]
+
+  # 3. OPTIONAL — deny-by-default firewall, opening only the DayZ UDP ports.
+  #    Commented out deliberately: it is the one step here that can end your
+  #    session, and doing it unattended on first boot means nobody is watching
+  #    if the SSH detection is wrong. `zsm service firewall --apply` verifies
+  #    the SSH rule is in the firewall's own table before it denies anything,
+  #    so running it yourself over SSH is both safe and observable.
+  #    username: change here (4 of 4)
+  # - [su, -l, dayz, -c, "$HOME/.local/bin/zsm --yes service firewall --apply"]
+
+final_message: |
+  Zedstead is installed and this host is bootstrapped ($UPTIME seconds).
+
+  Log in and finish:
+      ssh dayz@<this server>
+      zsm init
+
+  `zsm init` asks for your Steam login, which needs a Steam Guard code — that
+  is why it is not in this file.

@@ -1,0 +1,29 @@
+{
+  "_comment": "Which zedstead.com doc sections each panel page links to (docLinks.js). Keys are the PAGE_HELP keys in pageHelp.js. tests/test_doc_links.py checks every doc and anchor against the zedstead-site checkout.",
+  "pages": {
+    "/": [["web-ui", "dashboard", "Dashboard"]],
+    "/wizard": [["web-ui", "getting-started", "Getting started"]],
+    "/doctor": [["web-ui", "doctor", "Doctor"], ["troubleshooting", "", "Troubleshooting"]],
+    "/update": [["web-ui", "update", "Update"], ["features", "dayz-updates-keep-your-mission-edits", "DayZ updates keep your mission edits"]],
+    "/mods": [["web-ui", "mods", "Mods"], ["features", "pre-configured-mods", "Pre-configured mods"]],
+    "/mods/:id": [["web-ui", "mods", "Mods"]],
+    "/players": [["web-ui", "players", "Players"]],
+    "/backups": [["web-ui", "backups", "Backups"], ["features", "backups", "What a backup holds"]],
+    "/scheduler": [["web-ui", "scheduler", "Scheduler"]],
+    "/settings": [["web-ui", "settings", "Settings"], ["web-ui", "https", "HTTPS"]],
+    "/cleanup": [["web-ui", "cleanup", "Cleanup"]],
+    "/configs": [["web-ui", "configs", "Configs"], ["features", "config-history", "Config history"]],
+    "/configs/:id": [["web-ui", "configs", "Configs"]],
+    "/configs/mod-xml": [["features", "mission-xml-merging", "Mission XML merging"]],
+    "/configs/types": [["web-ui", "typesxml", "types.xml"], ["web-ui", "configs", "Configs"]],
+    "/configs/tp-price": [["web-ui", "traderplus-prices", "TraderPlus prices"], ["web-ui", "configs", "Configs"]],
+    "/quick-setup": [["web-ui", "quick-setup", "Quick setup"]],
+    "/adopt": [["install", "you-already-run-a-server", "You already run a server"], ["migrating-from-a-host", "", "Moving off a host"]],
+    "/presets": [["web-ui", "presets", "Presets"]],
+    "/maps": [["web-ui", "maps", "Maps"]],
+    "/map-editor": [["web-ui", "map-editor", "Map Editor"], ["features", "map-editor", "What the Map Editor covers"]],
+    "/analysis": [["web-ui", "analysis", "Analysis"]],
+    "/instances": [["instances", "several-servers-on-one-machine", "Several servers on one machine"], ["instances", "an-experimental-server", "An Experimental server"]],
+    "/account": [["web-ui", "accounts-and-roles", "Accounts and roles"], ["web-ui", "two-factor-sign-in", "Two-factor sign-in"]]
+  }
+}

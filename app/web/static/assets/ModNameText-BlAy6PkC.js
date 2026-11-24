@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-CDO3wmf-.js";import{i as t}from"./Tooltip-D9bbzTA_.js";import{y as n}from"./crossLinks-DGzwNaNC.js";var r=e();function i({text:e,known:i}){return String(e??``).split(/(@[A-Za-z0-9_.\-]+)/g).map((e,a)=>e.startsWith(`@`)&&i.has(e)?(0,r.jsx)(t,{className:`mod-link`,to:n(e),children:e},a):(0,r.jsx)(`span`,{children:e},a))}export{i as t};

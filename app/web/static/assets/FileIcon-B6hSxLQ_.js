@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-CDO3wmf-.js";import{W as t,rt as n}from"./hi2-Dz2rouij.js";var r=e();function i({action:e=`view`}){return(0,r.jsx)(e===`edit`?n:t,{className:`file-icon`,"aria-hidden":`true`})}export{i as t};

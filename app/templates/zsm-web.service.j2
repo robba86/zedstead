@@ -1,0 +1,16 @@
+[Unit]
+Description=Zedstead web app
+After=network-online.target
+
+[Service]
+Type=simple
+User={{ user }}
+WorkingDirectory={{ working_dir }}
+ExecStart="{{ python_path }}" -m app web
+# Without it the panel's own lines reach the journal only when a buffer fills.
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

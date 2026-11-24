@@ -1,0 +1,163 @@
+/* The Ctrl+K palette (plans/75). Loaded with the lazy CommandPalette chunk,
+   never in the entry CSS. It is a .modal on a .modal-backdrop, so the box,
+   the Tactical glass and the pointer light come from those rules; this file
+   only lays out the inside. Theme tokens only. */
+
+.command-palette-backdrop {
+  align-items: flex-start;
+  padding-top: min(12vh, 120px);
+  /* Above the map editor's sheet (1001/1002) and Leaflet's controls (1000). */
+  z-index: 1100;
+}
+
+.modal.command-palette {
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(70vh, 560px);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.command-palette-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.command-palette-icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--text-muted);
+}
+
+.command-palette-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.command-palette-input::placeholder {
+  color: var(--text-muted);
+}
+
+.command-palette kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: var(--bg);
+}
+
+.command-palette-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.command-palette-x {
+  display: none;
+  width: 22px;
+  height: 22px;
+}
+
+@media (hover: none) {
+  .command-palette-close {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+
+  .command-palette-close .command-palette-kbd {
+    display: none;
+  }
+
+  .command-palette-x {
+    display: block;
+  }
+}
+
+.command-palette-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.command-palette-group {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.command-palette-item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.command-palette-item.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.command-palette-title {
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-palette-sub {
+  margin-left: auto;
+  flex: none;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.command-palette-foot {
+  display: flex;
+  gap: 16px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 840px) {
+  .command-palette-backdrop {
+    padding-top: 8px;
+  }
+
+  .modal.command-palette {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .command-palette-foot {
+    display: none;
+  }
+}

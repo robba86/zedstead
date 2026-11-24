@@ -1,0 +1,61 @@
+# OS packages zsm needs on a Debian/Ubuntu host.
+#
+# SINGLE SOURCE OF TRUTH. Read by:
+#   * install.sh, and its --check-deps  (the [runtime] section)
+#   * app/shared/os_packages.py -> zsm doctor  ("OS dependencies" check)
+#   * app/shared/steam.py's SteamCMD auto-installer  (the [steamcmd] section)
+#   * tests/test_os_packages.py, which asserts docker/Dockerfile's apt list is a
+#     superset of [runtime], and that install.sh's inline bootstrap trio equals
+#     [bootstrap].
+# Do not add a fourth copy of this list anywhere. See plans/21.
+#
+# Format: one package per line. Blank lines and lines starting with # ignored.
+# Section headers are [name] on their own line.
+#
+# Multiarch is the route: 32-bit libraries are named `<pkg>:i386` and require
+# `dpkg --add-architecture i386` first. Readers of this file do that step
+# themselves when any entry contains `:i386` (install.sh does it in
+# ensure_packages; steam.py in _install_steamcmd_linux).
+#
+# The alternative route — amd64-arch `lib32*` packages that ship into
+# /usr/lib32 and need no add-architecture — is deliberately NOT used, so that
+# one route is verified rather than two. `lib32gcc-s1` is not an exception:
+# there is no `libgcc-s1:i386`, so it is the only spelling available.
+# See plans/26.
+
+[bootstrap]
+# Needed by install.sh itself, before it can clone the repo. Kept inline in
+# install.sh too (it has no repo to read this file from when piped from curl);
+# the test above pins the two copies together.
+#
+# tar is here because uv's own installer needs it. Rocky minimal does not ship
+# it and the install died at the very first step — "ERROR: need 'tar' (command
+# not found)" (2026 Q3). Never seen on Debian/Ubuntu, where tar is Essential.
+git
+curl
+ca-certificates
+tar
+
+[steamcmd]
+# What SteamCMD itself needs, plus the two tools used to fetch and unpack it.
+# A strict subset of [runtime] — app/shared/steam.py installs *only* this,
+# because auto-installing SteamCMD must not quietly widen into installing the
+# DayZ server's dependencies. ca-certificates is here because the download is
+# an HTTPS fetch from steamcdn.
+ca-certificates
+curl
+tar
+lib32gcc-s1
+libstdc++6:i386
+
+[runtime]
+# Needed for SteamCMD (32-bit) and the DayZServer binary. Verified against a
+# clean Ubuntu 24.04 image build — see docker/Dockerfile's comment block.
+ca-certificates
+curl
+locales
+tzdata
+tar
+lib32gcc-s1
+libstdc++6:i386
+libcurl4

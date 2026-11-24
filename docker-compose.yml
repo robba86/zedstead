@@ -1,0 +1,89 @@
+# DayZ dedicated server, managed by zsm inside the container. The image runs
+# systemd as PID 1, so the server + scheduled tasks are real systemd units —
+# the container behaves like a native Ubuntu server install.
+#
+# First-time setup (cache the Steam login token — one interactive run, 2FA):
+#   cp .env.example .env                                    # then edit: STEAM_USERNAME is required
+#   docker compose build
+#   docker compose up -d                                   # boots idle (no token yet)
+#   docker compose exec -u zsm dayz zsm steam-login      # cache the token
+#   docker compose up -d --force-recreate                  # installs server + service (idle)
+#
+# The server does NOT auto-start — manage it from the web UI or the CLI:
+#   docker compose exec -u zsm dayz zsm web              # browser UI on host port 8433 (see the ports note below)
+#   docker compose exec -u zsm dayz zsm start            # one-off start
+# Set START_SERVER=1 in .env to boot straight into a running server instead.
+#
+# Logs:    docker compose logs -f            (systemd journal on the console)
+# Status:  docker compose exec dayz systemctl status dayz-server.service
+services:
+  dayz:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        # Match the container user to your host uid/gid so the bind-mounted
+        # volumes under ../zsm-data stay writable.
+        # Set UID/GID in .env (or your shell) to `id -u` / `id -g`.
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: zedstead-dayz
+    container_name: dayz-server
+    restart: unless-stopped
+
+    # --- systemd as PID 1 ----------------------------------------------------
+    # systemd needs cgroup access. This non-privileged recipe (cgroup namespace =
+    # host + the cgroup2 fs mounted rw) boots systemd on modern cgroup v2 hosts
+    # (Ubuntu 22.04+ / Docker 20.10+, compose v2.24+ — also needed for the
+    # env_file long syntax below). Do NOT add
+    # `cap_add: [SYS_ADMIN]` here — with cgroupns=host it makes systemd exit 255
+    # at boot (then `/run/systemd/system` never appears and zsm reports "systemd
+    # not detected"). If systemd still won't boot (cgroup v1 host, Docker
+    # Desktop), uncomment `privileged: true` and drop `cgroup: host`.
+    cgroup: host
+    # privileged: true
+    stop_signal: SIGRTMIN+3 # tell systemd to shut down (not reboot)
+    stop_grace_period: 90s # give DayZServer time to flush on shutdown
+
+    # Optional — without .env the container boots on built-in defaults
+    # (cp .env.example .env to customize). `required: false` keeps every
+    # compose command (incl. build) working on a fresh clone.
+    env_file:
+      - path: .env
+        required: false
+    # Ports: nothing is published. `network_mode: host` (at the end of this
+    # service) puts the game ports, BattlEye RCon and `zsm web` straight on the
+    # host's network, on every interface, and the host firewall (ufw) applies to
+    # them. zsm web binds 0.0.0.0:8433 here and serves self-signed HTTPS unless
+    # `web_bind_host` is set (https://zedstead.com/docs/docker/, "Web UI in Docker"); RCon binds
+    # every interface unless beserver_x64.cfg sets `RConIP 127.0.0.1`.
+    # SERVER_PORT_END and WEB_PORT do nothing with host networking.
+    #
+    # The commented block is the bridge-network mapping used before host
+    # networking, for a setup that removes `network_mode: host`. Its ports
+    # interpolate from .env (compose reads it for ${VAR} substitution even
+    # without env_file); no .env -> the :-defaults apply. Compose can't do
+    # arithmetic, so if you move SERVER_PORT also set SERVER_PORT_END (port+4).
+    # ports:
+    #   - "${SERVER_PORT:-2302}-${SERVER_PORT_END:-2306}:${SERVER_PORT:-2302}-${SERVER_PORT_END:-2306}/udp"  # game / voice / extra
+    #   - "${RCON_PORT:-2305}:${RCON_PORT:-2305}/udp"    # BattlEye RCON (deduped when inside the range above)
+    #   # Steam query — STEAM_QUERY_PORT is also written into serverDZ.cfg
+    #   # `steamQueryPort` by the bootstrap, so mapping and server stay in sync.
+    #   - "${STEAM_QUERY_PORT:-27016}:${STEAM_QUERY_PORT:-27016}/udp"
+    #   # zsm web (opt-in — `docker compose exec -u zsm dayz zsm web`, not
+    #   # auto-started). Container side is fixed at 8433; in bridge mode WEB_PORT
+    #   # moves only the host port: https://localhost:<port> (self-signed; see
+    #   # https://zedstead.com/docs/docker/)
+    #   - "${WEB_PORT:-8433}:8433"
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw # systemd cgroup hierarchy
+      # Host data lives OUTSIDE the repo (../zsm-data) so the source tree stays clean.
+      - ../zsm-data/server:/home/zsm/server # DayZServer binary, mission, profiles, BE, keys
+      - ../zsm-data/steam-cache:/home/zsm/Steam # cached Steam login token + workshop mods
+      - ../zsm-data/config:/home/zsm/.config/zsm # generated zsm config (and zsm state)
+      - ../zsm-data/backups:/home/zsm/backups # zsm backups (backup_dir)
+      - ../zsm-data/bundles:/home/zsm/bundles # zsm server bundle exports (bundle_export_dir)
+    network_mode: host
